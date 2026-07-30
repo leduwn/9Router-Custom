@@ -42,7 +42,7 @@ export default function LoginPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.requireLogin === false) {
-            window.location.assign("/dashboard");
+            window.location.assign("/dashboard/endpoint");
             return;
           }
           setHasPassword(!!data.hasPassword);
@@ -80,7 +80,7 @@ export default function LoginPage() {
           setMustChange(true);
           return;
         }
-        window.location.assign("/dashboard");
+        window.location.assign("/dashboard/endpoint");
       } else {
         const data = await res.json();
         setError(data.error || "Invalid password");
@@ -106,7 +106,7 @@ export default function LoginPage() {
         body: JSON.stringify({ currentPassword: password, newPassword }),
       });
       if (res.ok) {
-        window.location.assign("/dashboard");
+        window.location.assign("/dashboard/endpoint");
       } else {
         const data = await res.json();
         setError(data.error || "Failed to set password");

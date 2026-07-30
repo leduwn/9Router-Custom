@@ -127,7 +127,7 @@ export default function Sidebar({ onClose }) {
       <aside className="flex min-h-full w-[272px] flex-col border-r border-border-subtle bg-sidebar shadow-[12px_0_40px_-32px_rgba(14,66,120,0.45)] transition-colors duration-300">
         {/* Logo */}
         <div className="flex flex-col gap-3 px-5 pb-4 pt-6">
-          <Link href="/dashboard" prefetch={false} className="group flex items-center gap-3 rounded-xl">
+          <Link href="/dashboard/endpoint" prefetch={false} className="group flex items-center gap-3 rounded-xl">
             <BrandMark size="md" className="transition-transform duration-200 group-hover:-rotate-2 group-hover:scale-105" />
             <div className="flex flex-col">
               <h1 className="text-[17px] font-bold tracking-[-0.025em] text-text-main">

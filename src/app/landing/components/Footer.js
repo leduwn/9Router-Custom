@@ -2,7 +2,7 @@ import BrandMark from "@/shared/components/BrandMark";
 import { APP_CONFIG } from "@/shared/constants/config";
 
 const links = [
-  ["Dashboard", "/dashboard"],
+  ["Dashboard", "/dashboard/endpoint"],
   ["Documentation", "https://github.com/decolua/9router#readme"],
   ["GitHub", "https://github.com/decolua/9router"],
   ["npm runtime", "https://www.npmjs.com/package/9router"],

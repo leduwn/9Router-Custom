@@ -40,7 +40,7 @@ export default function LandingPage() {
               </p>
               <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
-                  href="/dashboard"
+                  href="/dashboard/endpoint"
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-b from-cyan-300 to-blue-500 px-7 text-sm font-bold text-slate-950 shadow-[0_18px_42px_-20px_rgba(34,211,238,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:brightness-105 sm:w-auto"
                 >
                   Open dashboard

@@ -16,7 +16,7 @@ vi.mock("next/server", () => ({
   NextResponse: {
     next: vi.fn(() => mocks.nextResponse),
     json: mocks.jsonResponse,
-    redirect: vi.fn((url) => ({ status: 307, url })),
+    redirect: vi.fn((url) => ({ status: 307, url, headers: new Headers() })),
   },
 }));
 
@@ -259,6 +259,27 @@ describe("dashboard guard local-only access", () => {
 });
 
 describe("dashboard guard helpers", () => {
+  it("redirects authenticated /dashboard to the canonical endpoint document", async () => {
+    const dashboardRequest = request("/dashboard", { host: "localhost:20128" });
+    dashboardRequest.cookies.get.mockReturnValue({ value: "valid-token" });
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+
+    const response = await proxy(dashboardRequest);
+
+    expect(response.status).toBe(307);
+    expect(response.url.pathname).toBe("/dashboard/endpoint");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
+  });
+
+  it("redirects / to the canonical endpoint document", async () => {
+    const response = await proxy(request("/", { host: "localhost:20128" }));
+
+    expect(response.status).toBe(307);
+    expect(response.url.pathname).toBe("/dashboard/endpoint");
+    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
+  });
+
   it("marks dashboard documents as private and non-cacheable", () => {
     const response = { headers: new Headers() };
 

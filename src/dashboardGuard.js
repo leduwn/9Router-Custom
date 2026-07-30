@@ -28,6 +28,17 @@ function redirectDocumentResponse(url) {
   return applyDocumentNoStore(NextResponse.redirect(url));
 }
 
+function redirectDashboardHome(request) {
+  const response = redirectDocumentResponse(
+    new URL("/dashboard/endpoint", request.url),
+  );
+  // This route previously rendered a separate dashboard document. Clear only
+  // the browser HTTP cache when retiring it so an old shell cannot survive a
+  // deployment; cookies and local settings remain untouched.
+  response.headers.set("Clear-Site-Data", "\"cache\"");
+  return response;
+}
+
 let cachedCliToken = null;
 async function getCliToken() {
   if (!cachedCliToken) cachedCliToken = await getConsistentMachineId(CLI_TOKEN_SALT);
@@ -258,14 +269,21 @@ export async function proxy(request) {
       // On error, keep defaults (require login, block tunnel)
     }
 
-    // If login not required, allow through
-    if (!requireLogin) return nextDocumentResponse();
+    // If login not required, allow through. Keep a single canonical document
+    // for the endpoint page so /dashboard can never retain a separate UI shell.
+    if (!requireLogin) {
+      return pathname === "/dashboard"
+        ? redirectDashboardHome(request)
+        : nextDocumentResponse();
+    }
 
     // Verify JWT token
     const token = request.cookies.get("auth_token")?.value;
     if (token) {
       if (await verifyDashboardAuthToken(token)) {
-        return nextDocumentResponse();
+        return pathname === "/dashboard"
+          ? redirectDashboardHome(request)
+          : nextDocumentResponse();
       } else {
         return redirectDocumentResponse(new URL("/login", request.url));
       }
@@ -274,9 +292,10 @@ export async function proxy(request) {
     return redirectDocumentResponse(new URL("/login", request.url));
   }
 
-  // Redirect / to /dashboard if logged in, or /dashboard if it's the root
+  // Use one canonical dashboard entry point for both authenticated and
+  // unauthenticated requests; the target performs the normal auth check.
   if (pathname === "/") {
-    return redirectDocumentResponse(new URL("/dashboard", request.url));
+    return redirectDashboardHome(request);
   }
 
   return NextResponse.next();

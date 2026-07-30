@@ -60,7 +60,7 @@ export default function GetStarted() {
             <div className="mt-4 text-slate-500">
               <p><span className="text-blue-400">›</span> Starting Duwn control plane</p>
               <p><span className="text-blue-400">›</span> 9router runtime listening on <span className="text-slate-300">:20128</span></p>
-              <p><span className="text-blue-400">›</span> Dashboard <span className="text-slate-300">http://localhost:20128/dashboard</span></p>
+              <p><span className="text-blue-400">›</span> Dashboard <span className="text-slate-300">http://localhost:20128/dashboard/endpoint</span></p>
               <p><span className="text-emerald-400">✓</span> Ready to route</p>
             </div>
 

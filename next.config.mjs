@@ -45,6 +45,10 @@ const tracingRoot = process.env.NEXT_TRACING_ROOT_MODE === "workspace"
 const proxyClientMaxBodySize = process.env.NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE || "128mb";
 const noStoreDocumentHeaders = [
   {
+    key: "X-Duwn-UI-Build",
+    value: uiBuildId
+  },
+  {
     key: "Cache-Control",
     value: "private, no-store, no-cache, max-age=0, must-revalidate"
   },
