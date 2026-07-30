@@ -69,7 +69,16 @@ const nextConfig = {
       { source: "/", headers: noStoreDocumentHeaders },
       { source: "/login", headers: noStoreDocumentHeaders },
       { source: "/landing", headers: noStoreDocumentHeaders },
-      { source: "/dashboard/:path*", headers: noStoreDocumentHeaders }
+      { source: "/dashboard/:path*", headers: noStoreDocumentHeaders },
+      {
+        source: "/providers/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800"
+          }
+        ]
+      }
     ];
   },
   async rewrites() {

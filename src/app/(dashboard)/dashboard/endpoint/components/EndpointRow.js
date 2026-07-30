@@ -1,6 +1,6 @@
 "use client";
 
-import { Input } from "@/shared/components";
+import Input from "@/shared/components/Input";
 
 /** Reusable endpoint row component */
 export default function EndpointRow({ label, url, copyId, copied, onCopy, badge, actions }) {

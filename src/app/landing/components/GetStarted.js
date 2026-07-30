@@ -12,7 +12,7 @@ export default function GetStarted() {
   const { copied, copy } = useCopyToClipboard();
 
   return (
-    <section className="border-y border-white/[0.07] bg-[#040c17]/72 px-6 py-24 sm:py-28">
+    <section className="render-lazy border-y border-white/[0.07] bg-[#040c17]/72 px-6 py-24 sm:py-28">
       <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
         <div>
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Start locally</p>

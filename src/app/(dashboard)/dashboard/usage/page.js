@@ -1,9 +1,20 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams, useRouter } from "next/navigation";
-import { UsageStats, RequestLogger, CardSkeleton, SegmentedControl } from "@/shared/components";
-import RequestDetailsTab from "./components/RequestDetailsTab";
+import UsageStats from "@/shared/components/UsageStats";
+import { CardSkeleton } from "@/shared/components/Loading";
+import SegmentedControl from "@/shared/components/SegmentedControl";
+
+const RequestLogger = dynamic(() => import("@/shared/components/RequestLogger"), {
+  loading: () => <CardSkeleton />,
+  ssr: false,
+});
+const RequestDetailsTab = dynamic(() => import("./components/RequestDetailsTab"), {
+  loading: () => <CardSkeleton />,
+  ssr: false,
+});
 
 const PERIODS = [
   { value: "today", label: "Today" },

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, Button, Input, BrandMark } from "@/shared/components";
+import Card from "@/shared/components/Card";
+import Button from "@/shared/components/Button";
+import Input from "@/shared/components/Input";
+import BrandMark from "@/shared/components/BrandMark";
 import { APP_CONFIG } from "@/shared/constants/config";
 
 export default function LoginPage() {

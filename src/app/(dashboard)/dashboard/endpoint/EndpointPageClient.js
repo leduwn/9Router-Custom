@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, BrandMark, EmptyState } from "@/shared/components";
+import BrandMark from "@/shared/components/BrandMark";
+import Button from "@/shared/components/Button";
+import Card from "@/shared/components/Card";
+import EmptyState from "@/shared/components/EmptyState";
+import Input from "@/shared/components/Input";
+import { CardSkeleton } from "@/shared/components/Loading";
+import Modal, { ConfirmModal } from "@/shared/components/Modal";
+import Toggle from "@/shared/components/Toggle";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,

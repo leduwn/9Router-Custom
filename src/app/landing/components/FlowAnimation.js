@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BrandMark from "@/shared/components/BrandMark";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 
@@ -40,16 +40,50 @@ function EndpointItem({ item, active = false }) {
 
 export default function FlowAnimation() {
   const [activeFlow, setActiveFlow] = useState(0);
+  const sectionRef = useRef(null);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveFlow((current) => (current + 1) % PROVIDERS.length);
-    }, 2200);
-    return () => clearInterval(interval);
+    const section = sectionRef.current;
+    if (!section || globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return undefined;
+    }
+
+    let visible = false;
+    let interval = null;
+    const stop = () => {
+      if (interval) globalThis.clearInterval(interval);
+      interval = null;
+    };
+    const start = () => {
+      if (!visible || document.hidden || interval) return;
+      interval = globalThis.setInterval(() => {
+        setActiveFlow((current) => (current + 1) % PROVIDERS.length);
+      }, 2200);
+    };
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        visible = entry.isIntersecting;
+        if (visible) start();
+        else stop();
+      },
+      { rootMargin: "120px" },
+    );
+    const onVisibilityChange = () => {
+      if (document.hidden) stop();
+      else start();
+    };
+
+    observer.observe(section);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      stop();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return (
-    <section className="relative w-full overflow-hidden rounded-[26px] border border-white/[0.075] bg-white/[0.028] p-5 shadow-[0_32px_80px_-52px_rgba(33,136,255,0.7)] sm:p-8" aria-label="Routing flow">
+    <section ref={sectionRef} className="relative w-full overflow-hidden rounded-[26px] border border-white/[0.075] bg-white/[0.028] p-5 shadow-[0_32px_80px_-52px_rgba(33,136,255,0.7)] sm:p-8" aria-label="Routing flow">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(33,136,255,0.1),transparent_45%)]" />
 
       <div className="relative grid items-center gap-5 md:grid-cols-[1fr_auto_1fr] md:gap-10">

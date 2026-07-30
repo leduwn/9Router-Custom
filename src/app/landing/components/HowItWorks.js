@@ -22,7 +22,7 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section className="border-y border-white/[0.07] bg-white/[0.018] px-6 py-24 sm:py-32" id="how-it-works">
+    <section className="render-lazy border-y border-white/[0.07] bg-white/[0.018] px-6 py-24 sm:py-32" id="how-it-works">
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">How it works</p>

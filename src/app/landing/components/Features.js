@@ -35,7 +35,7 @@ const FEATURES = [
 
 export default function Features() {
   return (
-    <section className="px-6 py-24 sm:py-32" id="features">
+    <section className="render-lazy px-6 py-24 sm:py-32" id="features">
       <div className="mx-auto max-w-7xl">
         <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
           <div>

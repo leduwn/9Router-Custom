@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
@@ -11,7 +12,10 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import Button from "./Button";
 import BrandMark from "./BrandMark";
 import { ConfirmModal } from "./Modal";
-import NineRemotePromoModal from "./NineRemotePromoModal";
+
+const NineRemotePromoModal = dynamic(() => import("./NineRemotePromoModal"), {
+  ssr: false,
+});
 
 // const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
 const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
@@ -63,10 +67,20 @@ export default function Sidebar({ onClose }) {
 
   // Lazy check for new npm version on mount
   useEffect(() => {
-    fetch("/api/version")
-      .then(res => res.json())
-      .then(data => { if (data.hasUpdate) setUpdateInfo(data); })
-      .catch(() => {});
+    let cancelled = false;
+    const checkForUpdate = () => {
+      fetch("/api/version", { cache: "no-store" })
+        .then(res => res.json())
+        .then(data => {
+          if (!cancelled && data.hasUpdate) setUpdateInfo(data);
+        })
+        .catch(() => {});
+    };
+    const timeout = globalThis.setTimeout(checkForUpdate, 1200);
+    return () => {
+      cancelled = true;
+      globalThis.clearTimeout(timeout);
+    };
   }, []);
 
   const isActive = (href) => {
@@ -110,10 +124,10 @@ export default function Sidebar({ onClose }) {
 
   return (
     <>
-      <aside className="flex min-h-full w-[272px] flex-col border-r border-border-subtle bg-sidebar shadow-[12px_0_40px_-32px_rgba(14,66,120,0.45)] backdrop-blur-2xl transition-colors duration-300">
+      <aside className="flex min-h-full w-[272px] flex-col border-r border-border-subtle bg-sidebar shadow-[12px_0_40px_-32px_rgba(14,66,120,0.45)] transition-colors duration-300">
         {/* Logo */}
         <div className="flex flex-col gap-3 px-5 pb-4 pt-6">
-          <Link href="/dashboard" className="group flex items-center gap-3 rounded-xl">
+          <Link href="/dashboard" prefetch={false} className="group flex items-center gap-3 rounded-xl">
             <BrandMark size="md" className="transition-transform duration-200 group-hover:-rotate-2 group-hover:scale-105" />
             <div className="flex flex-col">
               <h1 className="text-[17px] font-bold tracking-[-0.025em] text-text-main">
@@ -156,6 +170,7 @@ export default function Sidebar({ onClose }) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               onClick={onClose}
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
@@ -204,6 +219,7 @@ export default function Sidebar({ onClose }) {
                   <Link
                     key={kind.id}
                     href={`/dashboard/media-providers/${kind.id}`}
+                    prefetch={false}
                     onClick={onClose}
                     className={cn(
                       "group flex items-center gap-3 rounded-xl px-4 py-2 text-[13px] transition-all duration-200",
@@ -219,6 +235,7 @@ export default function Sidebar({ onClose }) {
                 <Link
                   key={COMBINED_WEB_ITEM.id}
                   href={COMBINED_WEB_ITEM.href}
+                  prefetch={false}
                   onClick={onClose}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl px-4 py-2 text-[13px] transition-all duration-200",
@@ -237,6 +254,7 @@ export default function Sidebar({ onClose }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 onClick={onClose}
                 className={cn(
                   "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
@@ -264,6 +282,7 @@ export default function Sidebar({ onClose }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   onClick={onClose}
                   className={cn(
                     "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
@@ -302,6 +321,7 @@ export default function Sidebar({ onClose }) {
             {/* Settings */}
             <Link
               href="/dashboard/profile"
+              prefetch={false}
               onClick={onClose}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
@@ -326,7 +346,9 @@ export default function Sidebar({ onClose }) {
       </aside>
 
       {/* Remote Promo Modal */}
-      <NineRemotePromoModal isOpen={showRemoteModal} onClose={() => setShowRemoteModal(false)} />
+      {showRemoteModal ? (
+        <NineRemotePromoModal isOpen onClose={() => setShowRemoteModal(false)} />
+      ) : null}
 
       {/* Update Confirmation Modal */}
       <ConfirmModal
