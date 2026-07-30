@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
+import { APP_CONFIG } from "@/shared/constants/config";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
 
@@ -36,6 +37,35 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
+
+  useEffect(() => {
+    let active = true;
+
+    async function syncUiVersion() {
+      try {
+        const response = await fetch(
+          `/api/version?currentOnly=1&ui=${encodeURIComponent(APP_CONFIG.version)}&t=${Date.now()}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok || !active) return;
+
+        const { currentVersion } = await response.json();
+        if (!currentVersion || currentVersion === APP_CONFIG.version) return;
+
+        const target = new URL(globalThis.location.href);
+        if (target.searchParams.get("_duwn_ui") === currentVersion) return;
+        target.searchParams.set("_duwn_ui", currentVersion);
+        globalThis.location.replace(target.toString());
+      } catch {
+        // Keep the current UI available when the version probe is temporarily unreachable.
+      }
+    }
+
+    syncUiVersion();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-bg">

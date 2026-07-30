@@ -52,10 +52,23 @@ async function getLatestVersionCached() {
   return latest;
 }
 
-export async function GET() {
-  const latestVersion = await getLatestVersionCached();
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
+  "CDN-Cache-Control": "no-store",
+};
+
+export async function GET(request) {
   const currentVersion = pkg.version;
+  const currentOnly = new URL(request.url).searchParams.get("currentOnly") === "1";
+  if (currentOnly) {
+    return Response.json({ currentVersion }, { headers: NO_STORE_HEADERS });
+  }
+
+  const latestVersion = await getLatestVersionCached();
   const hasUpdate = latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false;
 
-  return Response.json({ currentVersion, latestVersion, hasUpdate });
+  return Response.json(
+    { currentVersion, latestVersion, hasUpdate },
+    { headers: NO_STORE_HEADERS },
+  );
 }

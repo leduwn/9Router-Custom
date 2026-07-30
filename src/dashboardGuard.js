@@ -5,6 +5,28 @@ import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
 const CLI_TOKEN_SALT = "9r-cli-auth";
+const DOCUMENT_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, no-cache, max-age=0, must-revalidate",
+  "CDN-Cache-Control": "no-store",
+  "Pragma": "no-cache",
+  "Expires": "0",
+};
+
+function applyDocumentNoStore(response) {
+  if (!response?.headers?.set) return response;
+  for (const [key, value] of Object.entries(DOCUMENT_NO_STORE_HEADERS)) {
+    response.headers.set(key, value);
+  }
+  return response;
+}
+
+function nextDocumentResponse() {
+  return applyDocumentNoStore(NextResponse.next());
+}
+
+function redirectDocumentResponse(url) {
+  return applyDocumentNoStore(NextResponse.redirect(url));
+}
 
 let cachedCliToken = null;
 async function getCliToken() {
@@ -178,6 +200,7 @@ export const __test__ = {
   extractApiKey,
   canAccessPublicLlmApi,
   canAccessLocalOnlyRoute,
+  applyDocumentNoStore,
 };
 
 export async function proxy(request) {
@@ -227,7 +250,7 @@ export async function proxy(request) {
           const tunnelHost = settings.tunnelUrl ? new URL(settings.tunnelUrl).hostname.toLowerCase() : "";
           const tailscaleHost = settings.tailscaleUrl ? new URL(settings.tailscaleUrl).hostname.toLowerCase() : "";
           if ((tunnelHost && host === tunnelHost) || (tailscaleHost && host === tailscaleHost)) {
-            return NextResponse.redirect(new URL("/login", request.url));
+            return redirectDocumentResponse(new URL("/login", request.url));
           }
         }
       }
@@ -236,24 +259,24 @@ export async function proxy(request) {
     }
 
     // If login not required, allow through
-    if (!requireLogin) return NextResponse.next();
+    if (!requireLogin) return nextDocumentResponse();
 
     // Verify JWT token
     const token = request.cookies.get("auth_token")?.value;
     if (token) {
       if (await verifyDashboardAuthToken(token)) {
-        return NextResponse.next();
+        return nextDocumentResponse();
       } else {
-        return NextResponse.redirect(new URL("/login", request.url));
+        return redirectDocumentResponse(new URL("/login", request.url));
       }
     }
 
-    return NextResponse.redirect(new URL("/login", request.url));
+    return redirectDocumentResponse(new URL("/login", request.url));
   }
 
   // Redirect / to /dashboard if logged in, or /dashboard if it's the root
   if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return redirectDocumentResponse(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

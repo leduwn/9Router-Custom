@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  nextResponse: Symbol("next"),
+  nextResponse: { kind: "next", headers: new Headers() },
   jsonResponse: vi.fn((body, init) => ({
     status: init?.status || 200,
     body,
@@ -259,6 +259,14 @@ describe("dashboard guard local-only access", () => {
 });
 
 describe("dashboard guard helpers", () => {
+  it("marks dashboard documents as private and non-cacheable", () => {
+    const response = { headers: new Headers() };
+
+    expect(__test__.applyDocumentNoStore(response)).toBe(response);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store");
+  });
+
   it("extracts bearer API keys before x-api-key", () => {
     const apiRequest = request("/v1/chat/completions", {
       authorization: "Bearer bearer-key",

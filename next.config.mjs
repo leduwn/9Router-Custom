@@ -8,6 +8,20 @@ const tracingRoot = process.env.NEXT_TRACING_ROOT_MODE === "workspace"
   ? join(projectRoot, "..")
   : projectRoot;
 const proxyClientMaxBodySize = process.env.NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE || "128mb";
+const noStoreDocumentHeaders = [
+  {
+    key: "Cache-Control",
+    value: "private, no-store, no-cache, max-age=0, must-revalidate"
+  },
+  {
+    key: "Pragma",
+    value: "no-cache"
+  },
+  {
+    key: "Expires",
+    value: "0"
+  }
+];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -49,6 +63,14 @@ const nextConfig = {
       ignored: /[\\/](node_modules|\.git|logs|\.next|\.next-cli-build|gitbook|cli|open-sse\.old|tests|docs)[\\/]/,
     };
     return config;
+  },
+  async headers() {
+    return [
+      { source: "/", headers: noStoreDocumentHeaders },
+      { source: "/login", headers: noStoreDocumentHeaders },
+      { source: "/landing", headers: noStoreDocumentHeaders },
+      { source: "/dashboard/:path*", headers: noStoreDocumentHeaders }
+    ];
   },
   async rewrites() {
     return [
