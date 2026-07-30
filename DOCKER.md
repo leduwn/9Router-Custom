@@ -1,6 +1,6 @@
 # Docker
 
-Run 9Router in a container. Published image: [`decolua/9router`](https://hub.docker.com/r/decolua/9router) — multi-platform `linux/amd64` + `linux/arm64`.
+Run the Duwn-branded gateway from the `9Router-Custom` source tree. The project publishes to [`ghcr.io/leduwn/9router-custom`](https://github.com/leduwn/9Router-Custom/pkgs/container/9router-custom).
 
 ---
 
@@ -9,12 +9,9 @@ Run 9Router in a container. Published image: [`decolua/9router`](https://hub.doc
 ## Quick start
 
 ```bash
-docker run -d \
-  -p 20128:20128 \
-  -v "$HOME/.9router:/app/data" \
-  -e DATA_DIR=/app/data \
-  --name 9router \
-  decolua/9router:latest
+git clone https://github.com/leduwn/9Router-Custom.git
+cd 9Router-Custom
+docker compose up -d --build
 ```
 
 App listens on port `20128`. Open: http://localhost:20128
@@ -61,7 +58,7 @@ docker run -d \
   -e HOSTNAME=0.0.0.0 \
   -e DEBUG=true \
   --name 9router \
-  decolua/9router:latest
+  ghcr.io/leduwn/9router-custom:latest
 ```
 
 ## Optional Headroom sidecar
@@ -71,7 +68,9 @@ The 9Router image does not bundle Python or Headroom. To use Headroom in Docker,
 ```yaml
 services:
   9router:
-    image: decolua/9router:latest
+    build: .
+    image: 9router-custom:local
+    pull_policy: build
     ports:
       - "20128:20128"
     volumes:
@@ -95,9 +94,8 @@ If Headroom runs on the Docker host instead of as a sidecar, use `http://host.do
 ## Update to latest
 
 ```bash
-docker pull decolua/9router:latest
-docker rm -f 9router
-# re-run the quick start command
+git pull
+docker compose up -d --build
 ```
 
 ---
@@ -107,19 +105,18 @@ docker rm -f 9router
 ## Build image locally (test)
 
 ```bash
-cd app && docker build -t 9router .
+docker build -t 9router-custom:local .
 
 docker run --rm -p 20128:20128 \
   -v "$HOME/.9router:/app/data" \
   -e DATA_DIR=/app/data \
-  9router
+  9router-custom:local
 ```
 
 ## Publish (automatic via CI)
 
 Push a git tag `v*` → GitHub Actions builds multi-platform (amd64+arm64) and pushes to:
-- `ghcr.io/decolua/9router:v{version}` + `:latest`
-- `decolua/9router:v{version}` + `:latest`
+- `ghcr.io/leduwn/9router-custom:v{version}` + `:latest`
 
 ```bash
 # Use scripts/release.js (recommended)
@@ -129,4 +126,4 @@ node scripts/release.js "Release title" "Notes"
 git tag v0.4.x && git push origin v0.4.x
 ```
 
-Workflow: `app/.github/workflows/docker-publish.yml`
+Workflow: `.github/workflows/docker-publish.yml`

@@ -17,15 +17,19 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "9Router - AI Infrastructure Management",
+  title: {
+    default: "Duwn - AI Infrastructure Management",
+    template: "%s | Duwn",
+  },
   description: "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
+  applicationName: "Duwn",
   icons: {
     icon: "/favicon.svg",
   },
 };
 
 export const viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#07111f",
 };
 
 export default function RootLayout({ children }) {

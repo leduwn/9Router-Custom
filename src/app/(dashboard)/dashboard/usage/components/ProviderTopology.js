@@ -94,14 +94,14 @@ ProviderNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Center 9Router node — pulse/glow on card only (no expanding rings)
+// Center Duwn node — pulse/glow on card only (no expanding rings)
 function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
       className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-xl border-2 min-w-[130px] ${
         powering
-          ? "topology-router-core border-yellow-300 bg-gradient-to-br from-primary/30 via-yellow-400/20 to-cyan-400/25"
+          ? "topology-router-core border-primary bg-primary/15"
           : "border-primary bg-primary/5 shadow-md"
       }`}
     >
@@ -112,16 +112,16 @@ function RouterNode({ data }) {
 
       <img
         src="/favicon.svg"
-        alt="9Router"
+        alt="Duwn"
         className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
         loading="lazy"
         decoding="async"
       />
-      <span className={`text-sm font-bold ${powering ? "topology-router-label text-yellow-300" : "text-primary"}`}>
-        9Router
+      <span className={`text-sm font-bold text-primary ${powering ? "topology-router-label" : ""}`}>
+        Duwn
       </span>
       {data.activeCount > 0 && (
-        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-yellow-400 text-black text-xs font-bold topology-router-badge">
+        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-xs font-bold topology-router-badge">
           {data.activeCount}
         </span>
       )}
@@ -175,7 +175,7 @@ function TopologyEdge({
       <path
         d={edgePath}
         fill="none"
-        stroke="#22d3ee"
+        stroke="#2188ff"
         strokeWidth={10}
         strokeOpacity={0.35}
         strokeLinecap="round"
@@ -186,7 +186,7 @@ function TopologyEdge({
       <path
         d={edgePath}
         fill="none"
-        stroke="#4ade80"
+        stroke="#2188ff"
         strokeWidth={5}
         strokeOpacity={0.85}
         strokeLinecap="round"
@@ -205,9 +205,9 @@ function TopologyEdge({
         <circle
           key={`${id}-p-${i}`}
           r={i % 2 === 0 ? 4 : 2.5}
-          fill={i % 3 === 0 ? "#fde047" : i % 3 === 1 ? "#67e8f9" : "#fff"}
+          fill={i % 3 === 2 ? "#fff" : "#2188ff"}
           opacity={0.95}
-          style={{ filter: "drop-shadow(0 0 4px #22d3ee)" }}
+          style={{ filter: "drop-shadow(0 0 4px #2188ff)" }}
         >
           <animateMotion
             dur={`${0.4 + i * 0.08}s`}
@@ -293,7 +293,7 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
 
   const edgeStyle = (active, last, error) => {
     if (error) return { stroke: "#ef4444", strokeWidth: 2.5, opacity: 0.9 };
-    if (active) return { stroke: "#22d3ee", strokeWidth: 3.5, opacity: 1 };
+    if (active) return { stroke: "#2188ff", strokeWidth: 3.5, opacity: 1 };
     if (last) return { stroke: "#f59e0b", strokeWidth: 2, opacity: 0.7 };
     return { stroke: "var(--color-border)", strokeWidth: 1, opacity: 0.3 };
   };

@@ -18,7 +18,9 @@ RUN npm run build
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 
-LABEL org.opencontainers.image.title="9router"
+LABEL org.opencontainers.image.title="Duwn"
+LABEL org.opencontainers.image.description="Duwn-branded 9Router gateway"
+LABEL org.opencontainers.image.source="https://github.com/leduwn/9Router-Custom"
 
 ENV NODE_ENV=production
 ENV PORT=20128
