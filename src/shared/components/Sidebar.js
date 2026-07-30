@@ -299,23 +299,6 @@ export default function Sidebar({ onClose }) {
               <span className="text-[13px] font-medium">9Remote</span>
             </button>
 
-            {/* 9English */}
-            <a
-              href="https://9english.net/"
-              target="_blank"
-              rel="noreferrer"
-              onClick={onClose}
-              className={cn(
-                "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
-                "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
-              )}
-            >
-              <span className="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors">
-                translate
-              </span>
-              <span className="text-[13px] font-medium">9English</span>
-            </a>
-
             {/* Settings */}
             <Link
               href="/dashboard/profile"
