@@ -1,10 +1,13 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="url(#gradient)"/>
-  <text x="16" y="24" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" fill="white" text-anchor="middle">9</text>
+  <rect width="32" height="32" rx="9" fill="url(#gradient)"/>
+  <rect x="1" y="1" width="30" height="30" rx="8" stroke="white" stroke-opacity=".18"/>
+  <path d="M8 7h7c5.4 0 8.5 3.3 8.5 9S20.4 25 15 25H8V7Zm5 4v10h1.8c2.6 0 4.1-1.75 4.1-5s-1.5-5-4.1-5H13Z" fill="white"/>
+  <circle cx="23.4" cy="7.4" r="2" fill="white" fill-opacity=".72"/>
   <defs>
     <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#f97815"/>
-      <stop offset="1" stop-color="#c2590a"/>
+      <stop stop-color="#22D3EE"/>
+      <stop offset=".48" stop-color="#2188FF"/>
+      <stop offset="1" stop-color="#1558C8"/>
     </linearGradient>
   </defs>
 </svg>

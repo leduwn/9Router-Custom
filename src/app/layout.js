@@ -1,4 +1,4 @@
-import { Inter } from "next/font/google";
+import { Manrope } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "material-symbols/outlined.css";
 import "./globals.css";
@@ -11,21 +11,25 @@ import { RuntimeI18nProvider } from "@/i18n/RuntimeI18nProvider";
 // Hook console immediately at module load time (server-side only, runs once)
 initConsoleLogCapture();
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-manrope",
 });
 
 export const metadata = {
-  title: "9Router - AI Infrastructure Management",
-  description: "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
+  title: {
+    default: "Duwn — AI routing control plane",
+    template: "%s · Duwn",
+  },
+  description: "Connect providers, route models, manage credentials, and monitor every request from one calm control plane.",
+  applicationName: "Duwn",
   icons: {
     icon: "/favicon.svg",
   },
 };
 
 export const viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#07111f",
 };
 
 export default function RootLayout({ children }) {
@@ -38,7 +42,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${manrope.variable} font-sans antialiased`}>
         <ThemeProvider>
           <RuntimeI18nProvider>
             {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, Button, Input } from "@/shared/components";
+import { Card, Button, Input, BrandMark } from "@/shared/components";
 import { APP_CONFIG } from "@/shared/constants/config";
 
 export default function LoginPage() {
@@ -135,20 +135,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg p-4 relative overflow-hidden">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg p-4">
       {/* Faint grid background */}
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
+      <div className="pointer-events-none absolute -left-28 -top-32 size-[28rem] rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -bottom-40 -right-24 size-[24rem] rounded-full bg-cyan-400/[0.07] blur-3xl" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary mb-2">{APP_CONFIG.name}</h1>
-          <p className="text-text-muted">
+        <div className="mb-7 text-center">
+          <BrandMark size="xl" className="mx-auto mb-5" />
+          <h1 className="mb-2 text-3xl font-bold tracking-[-0.04em] text-text-main">{APP_CONFIG.name}</h1>
+          <p className="text-sm leading-6 text-text-muted">
             {authMode === "oidc" && oidcConfigured
               ? "Sign in with your OIDC provider to access the dashboard"
               : "Enter your password to access the dashboard"}
           </p>
         </div>
 
-        <Card>
+        <Card elev className="surface-glass">
           {mustChange ? (
             <form onSubmit={handleSetNewPassword} className="flex flex-col gap-4">
               <p className="text-sm text-amber-600 dark:text-amber-400 text-center">

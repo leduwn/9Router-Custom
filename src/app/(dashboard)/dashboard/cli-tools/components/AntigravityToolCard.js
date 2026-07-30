@@ -396,12 +396,12 @@ export default function AntigravityToolCard({
           {!isRunning && (
             <div className="flex flex-col gap-1.5 px-1">
               <p className="text-xs text-text-muted">
-                <span className="font-medium text-text-main">How it works:</span> Intercepts Antigravity traffic via DNS redirect, letting you reroute models through 9Router.
+                <span className="font-medium text-text-main">How it works:</span> Intercepts Antigravity traffic via DNS redirect, letting you reroute models through Duwn.
               </p>
               <div className="flex flex-col gap-0.5 text-[11px] text-text-muted">
                 <span>1. Generates SSL cert & adds to system keychain</span>
                 <span>2. Redirects <code className="text-[10px] bg-surface px-1 rounded">daily-cloudcode-pa.googleapis.com</code> → localhost</span>
-                <span>3. Maps Antigravity models to any provider via 9Router</span>
+                <span>3. Maps Antigravity models to any provider via Duwn</span>
               </div>
             </div>
           )}

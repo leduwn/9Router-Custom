@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, BrandMark, EmptyState } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -703,6 +703,50 @@ export default function APIPageClient({ machineId }) {
 
   return (
     <div className="flex flex-col gap-8">
+      <section className="surface-glass relative overflow-hidden rounded-[22px] px-5 py-6 sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/12 blur-3xl" aria-hidden="true" />
+        <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)] lg:items-end">
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <BrandMark size="lg" />
+              <div>
+                <p className="brand-kicker">Duwn control plane</p>
+                <p className="mt-1 text-xs text-text-muted">Local gateway · {machineId?.slice(0, 8) || "this device"}</p>
+              </div>
+            </div>
+            <h2 className="max-w-2xl text-balance text-2xl font-bold leading-tight tracking-[-0.035em] text-text-main sm:text-[32px]">
+              Your AI traffic, one clear view.
+            </h2>
+            <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-text-muted sm:text-[15px]">
+              Connect tools to one stable endpoint, secure access with keys, and keep remote routing under control.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
+              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-green-500/10 text-green-500">
+                <span className="material-symbols-outlined text-[17px]">bolt</span>
+              </span>
+              <p className="text-sm font-bold text-text-main">Online</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Gateway</p>
+            </div>
+            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
+              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-[17px]">key</span>
+              </span>
+              <p className="tabular-nums text-sm font-bold text-text-main">{keys.length}</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">API keys</p>
+            </div>
+            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
+              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
+                <span className="material-symbols-outlined text-[17px]">language</span>
+              </span>
+              <p className="text-sm font-bold text-text-main">{tunnelEnabled || tsEnabled ? "Active" : "Local"}</p>
+              <p className="mt-0.5 text-[11px] text-text-muted">Remote access</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Endpoint Card */}
       <Card>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -980,16 +1024,12 @@ export default function APIPageClient({ machineId }) {
         )}
 
         {keys.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
-              <span className="material-symbols-outlined text-[32px]">vpn_key</span>
-            </div>
-            <p className="text-text-main font-medium mb-1">No API keys yet</p>
-            <p className="text-sm text-text-muted mb-4">Create your first API key to get started</p>
-            <Button icon="add" onClick={() => setShowAddModal(true)}>
-              Create Key
-            </Button>
-          </div>
+          <EmptyState
+            icon="vpn_key"
+            title="No API keys yet"
+            description="Create a key before connecting remote tools or sharing this endpoint."
+            action={<Button icon="add" onClick={() => setShowAddModal(true)}>Create Key</Button>}
+          />
         ) : (
           <div className="flex flex-col">
             {keys.map((key) => (
@@ -1145,7 +1185,7 @@ export default function APIPageClient({ machineId }) {
                   Cloudflare Tunnel
                 </p>
                 <p className="text-sm text-text-muted">
-                  Expose your local 9Router to the internet. No port forwarding, no static IP needed. Share endpoint URL with your team or use it in Cursor, Cline, and other AI tools from anywhere.
+                  Expose your local Duwn gateway to the internet. No port forwarding or static IP needed. Share the endpoint URL with your team or use it in Cursor, Cline, and other AI tools from anywhere.
                 </p>
               </div>
             </div>

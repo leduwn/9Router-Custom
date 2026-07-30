@@ -1,12 +1,12 @@
 export default function manifest() {
   return {
-    name: '9Router - AI Infrastructure Management',
-    short_name: '9Router',
-    description: 'One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.',
+    name: 'Duwn — AI routing control plane',
+    short_name: 'Duwn',
+    description: 'Connect providers, route models, manage credentials, and monitor every request from one control plane.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0a0a0a',
-    theme_color: '#0a0a0a',
+    background_color: '#07111f',
+    theme_color: '#07111f',
     orientation: 'portrait-primary',
     icons: [
       {

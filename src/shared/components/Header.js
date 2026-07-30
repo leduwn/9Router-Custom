@@ -108,7 +108,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/mitm"))
     return {
       title: "MITM Proxy",
-      description: "Intercept CLI tool traffic and route through 9Router",
+      description: "Intercept CLI tool traffic and route it through Duwn",
       icon: "security",
       breadcrumbs: [],
     };
@@ -136,7 +136,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/skills"))
     return {
       title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use 9Router — no install needed",
+      description: "Copy a link and give your AI access through Duwn — no install needed",
       icon: "extension",
       breadcrumbs: [],
     };
@@ -225,13 +225,13 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   };
 
   return (
-    <header className="shrink-0 flex items-center justify-between gap-3 px-4 lg:px-8 pt-3 pb-2 border-b border-border-subtle bg-surface/60 backdrop-blur-xl lg:bg-transparent lg:backdrop-blur-none z-20">
+    <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-surface/72 px-4 py-3 backdrop-blur-xl lg:px-9">
       {/* Mobile menu button */}
       <div className="flex items-center gap-3 lg:hidden shrink-0">
         {showMenuButton && (
           <button
             onClick={onMenuClick}
-            className="text-text-main hover:text-primary transition-colors"
+            className="flex size-9 items-center justify-center rounded-xl text-text-main transition-colors hover:bg-surface-2 hover:text-primary"
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
@@ -270,7 +270,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
                         fallbackText={crumb.label.slice(0, 2).toUpperCase()}
                       />
                     )}
-                    <h1 className="text-base lg:text-2xl font-semibold text-text-main tracking-tight truncate">
+                    <h1 className="truncate text-base font-bold tracking-[-0.025em] text-text-main lg:text-[22px]">
                       {translate(crumb.label)}
                     </h1>
                   </div>
@@ -286,7 +286,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
                   {icon}
                 </span>
               )}
-              <h1 className="text-base lg:text-2xl font-semibold tracking-tight truncate">
+              <h1 className="truncate text-base font-bold tracking-[-0.025em] lg:text-[22px]">
                 {translate(title)}
               </h1>
             </div>
@@ -337,7 +337,7 @@ function HeaderSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-8 pl-7 pr-7 rounded-lg border border-border bg-surface/60 text-sm focus:outline-none focus:border-primary/50 transition-colors"
+        className="h-9 w-full rounded-xl border border-border bg-surface/80 pl-8 pr-8 text-sm shadow-[var(--shadow-soft)] transition-all placeholder:text-text-subtle focus:border-primary/40 focus:outline-none"
       />
       {query && (
         <button

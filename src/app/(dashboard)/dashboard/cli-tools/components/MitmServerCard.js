@@ -165,17 +165,17 @@ export default function MitmServerCard({ apiKeys, cloudEnabled, onStatusChange }
           {/* Purpose & How it works */}
           <div className="px-2 py-2 rounded-lg bg-surface/50 border border-border/50 flex flex-col gap-2">
             <p className="text-[11px] text-text-muted leading-relaxed">
-              <span className="font-medium text-text-main">Purpose:</span> Use Antigravity IDE & GitHub Copilot → with ANY provider/model from 9Router
+              <span className="font-medium text-text-main">Purpose:</span> Use Antigravity IDE & GitHub Copilot with any provider or model available in Duwn
             </p>
             <p className="text-[11px] text-text-muted leading-relaxed">
-              <span className="font-medium text-text-main">How it works:</span> Antigravity/Copilot IDE request → DNS redirect to localhost:443 → MITM proxy intercepts → 9Router → response to Antigravity/Copilot
+              <span className="font-medium text-text-main">How it works:</span> Antigravity/Copilot request → local DNS redirect → MITM proxy → Duwn gateway → response
             </p>
           </div>
 
           {/* Base URL + API Key — same row pattern as Claude Code / cli-tools */}
           <div className="flex flex-col gap-2">
             <div className="grid gap-1 sm:grid-cols-[8rem_auto_1fr] sm:items-center sm:gap-2">
-              <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">9Router Base URL</span>
+              <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Duwn base URL</span>
               <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
               <input
                 type="text"
