@@ -7,6 +7,8 @@ import { APP_CONFIG } from "@/shared/constants/config";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
 
+const UI_BUILD_ID = process.env.NEXT_PUBLIC_DUWN_UI_BUILD_ID || APP_CONFIG.version;
+
 function getToastStyle(type) {
   if (type === "success") {
     return {
@@ -44,17 +46,18 @@ export default function DashboardLayout({ children }) {
     async function syncUiVersion() {
       try {
         const response = await fetch(
-          `/api/version?currentOnly=1&ui=${encodeURIComponent(APP_CONFIG.version)}&t=${Date.now()}`,
+          `/api/version?currentOnly=1&ui=${encodeURIComponent(APP_CONFIG.version)}&build=${encodeURIComponent(UI_BUILD_ID)}&t=${Date.now()}`,
           { cache: "no-store" },
         );
         if (!response.ok || !active) return;
 
-        const { currentVersion } = await response.json();
-        if (!currentVersion || currentVersion === APP_CONFIG.version) return;
+        const { currentVersion, uiBuildId } = await response.json();
+        const serverUiBuildId = uiBuildId || currentVersion;
+        if (!serverUiBuildId || serverUiBuildId === UI_BUILD_ID) return;
 
         const target = new URL(globalThis.location.href);
-        if (target.searchParams.get("_duwn_ui") === currentVersion) return;
-        target.searchParams.set("_duwn_ui", currentVersion);
+        if (target.searchParams.get("_duwn_ui") === serverUiBuildId) return;
+        target.searchParams.set("_duwn_ui", serverUiBuildId);
         globalThis.location.replace(target.toString());
       } catch {
         // Keep the current UI available when the version probe is temporarily unreachable.

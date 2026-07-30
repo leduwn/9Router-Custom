@@ -1,7 +1,42 @@
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+
+function hashUiPath(hash, targetPath) {
+  const stats = statSync(targetPath);
+  if (stats.isDirectory()) {
+    const entries = readdirSync(targetPath, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      hashUiPath(hash, join(targetPath, entry.name));
+    }
+    return;
+  }
+
+  hash.update(relative(projectRoot, targetPath).replaceAll("\\", "/"));
+  hash.update(readFileSync(targetPath));
+}
+
+const uiHash = createHash("sha256");
+for (const sourcePath of [
+  "package.json",
+  "public/favicon.svg",
+  "public/icons",
+  "src/app/(dashboard)",
+  "src/app/globals.css",
+  "src/app/landing",
+  "src/app/login",
+  "src/shared/components",
+  "src/shared/constants/config.js",
+  "src/shared/hooks",
+]) {
+  hashUiPath(uiHash, join(projectRoot, sourcePath));
+}
+const uiBuildId = uiHash.digest("hex").slice(0, 12);
+
 // CLI bundling needs workspace root so tracing includes hoisted node_modules (slim ~50MB).
 // Docker / default uses projectRoot so server.js lands at /app/server.js (not nested).
 const tracingRoot = process.env.NEXT_TRACING_ROOT_MODE === "workspace"
@@ -38,7 +73,9 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
-  env: {},
+  env: {
+    NEXT_PUBLIC_DUWN_UI_BUILD_ID: uiBuildId,
+  },
   experimental: {
     // #1529/#1572: LLM clients can send long context or base64 image payloads through /v1 rewrites.
     proxyClientMaxBodySize,
