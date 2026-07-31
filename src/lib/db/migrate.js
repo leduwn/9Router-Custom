@@ -142,8 +142,17 @@ function importLegacyMain(adapter, data) {
 
   importWithAssertion(adapter, "apiKeys", data.apiKeys || [], (k) => {
     adapter.run(
-      `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
-      [k.id, k.key, k.name || null, k.machineId || null, k.isActive === false ? 0 : 1, k.createdAt || new Date().toISOString()]
+      `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        k.id,
+        k.key,
+        k.name || null,
+        k.machineId || null,
+        k.isActive === false ? 0 : 1,
+        k.tokenLimit ?? null,
+        Number(k.usedTokens) || 0,
+        k.createdAt || new Date().toISOString(),
+      ]
     );
   }, (k) => ({ id: k.id ?? null, name: k.name ?? null }));
 

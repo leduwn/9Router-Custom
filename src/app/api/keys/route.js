@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApiKeys, createApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
+import { parseTokenLimit } from "@/lib/apiKeyLimits";
 
 export const dynamic = "force-dynamic";
 
@@ -25,15 +26,24 @@ export async function POST(request) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    let tokenLimit;
+    try {
+      tokenLimit = parseTokenLimit(body.tokenLimit) ?? null;
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
-    const apiKey = await createApiKey(name, machineId);
+    const apiKey = await createApiKey(name, machineId, tokenLimit);
 
     return NextResponse.json({
       key: apiKey.key,
       name: apiKey.name,
       id: apiKey.id,
       machineId: apiKey.machineId,
+      tokenLimit: apiKey.tokenLimit,
+      usedTokens: apiKey.usedTokens,
     }, { status: 201 });
   } catch (error) {
     console.log("Error creating key:", error);

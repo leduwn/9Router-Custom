@@ -3,7 +3,7 @@ import {
   markAccountUnavailable,
   clearAccountError,
   extractApiKey,
-  isValidApiKey,
+  getApiKeyAccess,
 } from "../services/auth.js";
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo } from "../services/model.js";
@@ -58,10 +58,12 @@ export async function handleEmbeddings(request) {
       log.warn("AUTH", "Missing API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
     }
-    const valid = await isValidApiKey(apiKey);
-    if (!valid) {
-      log.warn("AUTH", "Invalid API key (requireApiKey=true)");
-      return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+    const access = await getApiKeyAccess(apiKey);
+    if (!access.valid) {
+      if (access.reason !== "token_limit_exceeded") {
+        log.warn("AUTH", "Invalid API key (requireApiKey=true)");
+      }
+      return errorResponse(access.status, access.message);
     }
   }
 

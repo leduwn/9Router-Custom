@@ -1,5 +1,5 @@
 import {
-  extractApiKey, isValidApiKey,
+  extractApiKey, getApiKeyAccess,
   getProviderCredentials, markAccountUnavailable,
 } from "../services/auth.js";
 import { getSettings } from "@/lib/localDb";
@@ -36,8 +36,8 @@ export async function handleTts(request) {
   if (settings.requireApiKey) {
     const apiKey = extractApiKey(request);
     if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-    const valid = await isValidApiKey(apiKey);
-    if (!valid) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
+    const access = await getApiKeyAccess(apiKey);
+    if (!access.valid) return errorResponse(access.status, access.message);
   }
 
   if (!modelStr) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing model");
