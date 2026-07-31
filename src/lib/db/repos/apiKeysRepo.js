@@ -12,6 +12,7 @@ function rowToKey(row) {
     isActive: row.isActive === 1 || row.isActive === true,
     tokenLimit: row.tokenLimit == null ? null : Number(row.tokenLimit),
     usedTokens: Number(row.usedTokens) || 0,
+    allowedModels: row.allowedModels || null,
     createdAt: row.createdAt,
   };
 }
@@ -34,7 +35,7 @@ export async function getApiKeyByKey(key) {
   return rowToKey(row);
 }
 
-export async function createApiKey(name, machineId, tokenLimit = null) {
+export async function createApiKey(name, machineId, tokenLimit = null, allowedModels = null) {
   if (!machineId) throw new Error("machineId is required");
   const normalizedTokenLimit = parseTokenLimit(tokenLimit) ?? null;
   const db = await getAdapter();
@@ -48,11 +49,12 @@ export async function createApiKey(name, machineId, tokenLimit = null) {
     isActive: true,
     tokenLimit: normalizedTokenLimit,
     usedTokens: 0,
+    allowedModels: allowedModels || null,
     createdAt: new Date().toISOString(),
   };
   db.run(
-    `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.tokenLimit, 0, apiKey.createdAt]
+    `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.tokenLimit, 0, apiKey.allowedModels, apiKey.createdAt]
   );
   return apiKey;
 }
@@ -69,7 +71,7 @@ export async function updateApiKey(id, data) {
     }
     const merged = { ...rowToKey(row), ...normalizedData };
     db.run(
-      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ?, tokenLimit = ?, usedTokens = ? WHERE id = ?`,
+      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ?, tokenLimit = ?, usedTokens = ?, allowedModels = ? WHERE id = ?`,
       [
         merged.key,
         merged.name,
@@ -77,6 +79,7 @@ export async function updateApiKey(id, data) {
         merged.isActive ? 1 : 0,
         merged.tokenLimit,
         merged.usedTokens,
+        merged.allowedModels,
         id,
       ]
     );

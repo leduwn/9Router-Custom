@@ -325,7 +325,7 @@ export async function isValidApiKey(apiKey) {
   return access.valid;
 }
 
-export async function getApiKeyAccess(apiKey) {
+export async function getApiKeyAccess(apiKey, requestedModel = null) {
   if (!apiKey) {
     return {
       valid: false,
@@ -362,6 +362,23 @@ export async function getApiKeyAccess(apiKey) {
       message: "Token limit exceeded",
       keyInfo,
     };
+  }
+
+  if (requestedModel && keyInfo.allowedModels) {
+    const models = keyInfo.allowedModels.split(",").map(m => m.trim()).filter(Boolean);
+    if (models.length > 0 && !models.includes(requestedModel)) {
+      log.warn(
+        "AUTH",
+        `Model ${requestedModel} not allowed for key (allowed: ${keyInfo.allowedModels})`
+      );
+      return {
+        valid: false,
+        status: HTTP_STATUS.FORBIDDEN,
+        reason: "model_not_allowed",
+        message: `Model ${requestedModel} is not allowed for this API key.`,
+        keyInfo,
+      };
+    }
   }
 
   return {

@@ -42,7 +42,9 @@ export default function APIPageClient({ machineId }) {
   const [newKeyLimitError, setNewKeyLimitError] = useState("");
   const [editingKey, setEditingKey] = useState(null);
   const [editTokenLimit, setEditTokenLimit] = useState("");
+  const [editAllowedModels, setEditAllowedModels] = useState("");
   const [editKeyLimitError, setEditKeyLimitError] = useState("");
+  const [newKeyAllowedModels, setNewKeyAllowedModels] = useState("");
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
 
@@ -643,6 +645,7 @@ export default function APIPageClient({ machineId }) {
         body: JSON.stringify({
           name: newKeyName,
           tokenLimit: parsedLimit.value,
+          allowedModels: newKeyAllowedModels || null,
         }),
       });
       const data = await res.json();
@@ -652,6 +655,7 @@ export default function APIPageClient({ machineId }) {
         await fetchData();
         setNewKeyName("");
         setNewKeyTokenLimit("");
+        setNewKeyAllowedModels("");
         setNewKeyLimitError("");
         setShowAddModal(false);
       } else {
@@ -704,6 +708,7 @@ export default function APIPageClient({ machineId }) {
   const openTokenLimitEditor = (key) => {
     setEditingKey(key);
     setEditTokenLimit(key.tokenLimit == null ? "" : String(key.tokenLimit));
+    setEditAllowedModels(key.allowedModels || "");
     setEditKeyLimitError("");
   };
 
@@ -719,7 +724,7 @@ export default function APIPageClient({ machineId }) {
       const res = await fetch(`/api/keys/${editingKey.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenLimit: parsedLimit.value }),
+        body: JSON.stringify({ tokenLimit: parsedLimit.value, allowedModels: editAllowedModels || null }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -732,6 +737,7 @@ export default function APIPageClient({ machineId }) {
       )));
       setEditingKey(null);
       setEditTokenLimit("");
+      setEditAllowedModels("");
       setEditKeyLimitError("");
     } catch (error) {
       console.log("Error updating token limit:", error);
@@ -1133,9 +1139,9 @@ export default function APIPageClient({ machineId }) {
                     <button
                       onClick={() => openTokenLimitEditor(key)}
                       className="p-2 hover:bg-primary/10 rounded text-text-muted hover:text-primary transition-all"
-                      title="Edit token limit"
+                      title="Edit API key"
                     >
-                      <span className="material-symbols-outlined text-[18px]">data_usage</span>
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
                     </button>
                     <Toggle
                       size="sm"
@@ -1179,6 +1185,7 @@ export default function APIPageClient({ machineId }) {
           setShowAddModal(false);
           setNewKeyName("");
           setNewKeyTokenLimit("");
+          setNewKeyAllowedModels("");
           setNewKeyLimitError("");
         }}
       >
@@ -1203,6 +1210,13 @@ export default function APIPageClient({ machineId }) {
             hint="Maximum total tokens this key can use. Leave blank for unlimited."
             error={newKeyLimitError}
           />
+          <Input
+            label="Allowed Models (optional, comma-separated)"
+            value={newKeyAllowedModels}
+            onChange={(e) => setNewKeyAllowedModels(e.target.value)}
+            placeholder="e.g. gpt-4, claude-3-5-sonnet"
+            hint="Leave blank to allow all models."
+          />
           <div className="flex gap-2">
             <Button onClick={handleCreateKey} fullWidth disabled={!newKeyName.trim()}>
               Create
@@ -1223,19 +1237,19 @@ export default function APIPageClient({ machineId }) {
         </div>
       </Modal>
 
-      {/* Edit Token Limit Modal */}
+      {/* Edit API Key Modal */}
       <Modal
         isOpen={!!editingKey}
-        title="Edit Token Limit"
+        title={`Edit API Key: ${editingKey?.name || ""}`}
         onClose={() => {
           setEditingKey(null);
           setEditTokenLimit("");
+          setEditAllowedModels("");
           setEditKeyLimitError("");
         }}
       >
         <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm font-medium text-text-main">{editingKey?.name}</p>
             <p className="mt-1 text-xs text-text-muted">
               Used {formatTokenCount(editingKey?.usedTokens)} tokens so far. Changing the limit does not reset usage.
             </p>
@@ -1254,9 +1268,16 @@ export default function APIPageClient({ machineId }) {
             hint="Leave blank to remove the limit."
             error={editKeyLimitError}
           />
+          <Input
+            label="Allowed Models (optional, comma-separated)"
+            value={editAllowedModels}
+            onChange={(e) => setEditAllowedModels(e.target.value)}
+            placeholder="e.g. gpt-4, claude-3-5-sonnet"
+            hint="Leave blank to allow all models."
+          />
           <div className="flex gap-2">
             <Button onClick={handleUpdateTokenLimit} fullWidth>
-              Save Limit
+              Save Changes
             </Button>
             <Button
               onClick={() => {

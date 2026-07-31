@@ -51,7 +51,7 @@ export async function handleSearch(request) {
       log.warn("AUTH", "Missing API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
     }
-    const access = await getApiKeyAccess(apiKey);
+    const access = await getApiKeyAccess(apiKey, modelStr);
     if (!access.valid) {
       if (access.reason !== "token_limit_exceeded") {
         log.warn("AUTH", "Invalid API key (requireApiKey=true)");

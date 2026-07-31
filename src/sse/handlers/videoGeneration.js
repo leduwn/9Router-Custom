@@ -31,7 +31,7 @@ async function requireValidApiKey(request) {
   const settings = await getSettings();
   if (settings.requireApiKey) {
     if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-    const access = await getApiKeyAccess(apiKey);
+    const access = await getApiKeyAccess(apiKey, modelStr);
     if (!access.valid) return errorResponse(access.status, access.message);
   }
   return null;

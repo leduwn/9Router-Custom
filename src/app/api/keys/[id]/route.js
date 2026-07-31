@@ -38,6 +38,9 @@ export async function PUT(request, { params }) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
+    if (Object.hasOwn(body, "allowedModels")) {
+      updateData.allowedModels = body.allowedModels || null;
+    }
 
     const updated = await updateApiKey(id, updateData);
 

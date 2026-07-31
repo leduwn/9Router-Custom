@@ -33,9 +33,11 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const allowedModels = body.allowedModels || null;
+
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
-    const apiKey = await createApiKey(name, machineId, tokenLimit);
+    const apiKey = await createApiKey(name, machineId, tokenLimit, allowedModels);
 
     return NextResponse.json({
       key: apiKey.key,
@@ -44,6 +46,7 @@ export async function POST(request) {
       machineId: apiKey.machineId,
       tokenLimit: apiKey.tokenLimit,
       usedTokens: apiKey.usedTokens,
+      allowedModels: apiKey.allowedModels,
     }, { status: 201 });
   } catch (error) {
     console.log("Error creating key:", error);
