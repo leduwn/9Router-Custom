@@ -36,7 +36,7 @@ export async function handleTts(request) {
   if (settings.requireApiKey) {
     const apiKey = extractApiKey(request);
     if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-    const access = await getApiKeyAccess(apiKey);
+    const access = await getApiKeyAccess(apiKey, modelStr);
     if (!access.valid) return errorResponse(access.status, access.message);
   }
 

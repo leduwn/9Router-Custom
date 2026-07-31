@@ -259,6 +259,12 @@ describe("dashboard guard local-only access", () => {
 });
 
 describe("dashboard guard helpers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.nextResponse.headers = new Headers();
+    mocks.getSettings.mockResolvedValue({ requireLogin: false });
+  });
+
   it("redirects authenticated /dashboard to the canonical endpoint document", async () => {
     const dashboardRequest = request("/dashboard", { host: "localhost:20128" });
     dashboardRequest.cookies.get.mockReturnValue({ value: "valid-token" });
@@ -286,6 +292,17 @@ describe("dashboard guard helpers", () => {
     expect(__test__.applyDocumentNoStore(response)).toBe(response);
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(response.headers.get("cdn-cache-control")).toBe("no-store");
+  });
+
+  it("clears the old document cache when a versioned UI URL is loaded", async () => {
+    const response = await proxy(request(
+      "/dashboard/endpoint?_duwn_ui=new-build",
+      { host: "localhost:20128" },
+    ));
+
+    expect(response).toBe(mocks.nextResponse);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
   });
 
   it("extracts bearer API keys before x-api-key", () => {

@@ -42,8 +42,26 @@ export default function DashboardLayout({ children }) {
 
   useEffect(() => {
     let active = true;
+    let checking = false;
+
+    function removeUiCacheParams() {
+      const target = new URL(globalThis.location.href);
+      const hadUiBuild = target.searchParams.has("_duwn_ui");
+      const hadPurge = target.searchParams.has("_duwn_purge");
+      target.searchParams.delete("_duwn_ui");
+      target.searchParams.delete("_duwn_purge");
+      if (hadUiBuild || hadPurge) {
+        globalThis.history.replaceState(
+          globalThis.history.state,
+          "",
+          `${target.pathname}${target.search}${target.hash}`,
+        );
+      }
+    }
 
     async function syncUiVersion() {
+      if (checking) return;
+      checking = true;
       try {
         const response = await fetch(
           `/api/version?currentOnly=1&ui=${encodeURIComponent(APP_CONFIG.version)}&build=${encodeURIComponent(UI_BUILD_ID)}&t=${Date.now()}`,
@@ -53,7 +71,10 @@ export default function DashboardLayout({ children }) {
 
         const { currentVersion, uiBuildId } = await response.json();
         const serverUiBuildId = uiBuildId || currentVersion;
-        if (!serverUiBuildId || serverUiBuildId === UI_BUILD_ID) return;
+        if (!serverUiBuildId || serverUiBuildId === UI_BUILD_ID) {
+          removeUiCacheParams();
+          return;
+        }
 
         const target = new URL(globalThis.location.href);
         if (target.searchParams.get("_duwn_ui") === serverUiBuildId) return;
@@ -61,12 +82,21 @@ export default function DashboardLayout({ children }) {
         globalThis.location.replace(target.toString());
       } catch {
         // Keep the current UI available when the version probe is temporarily unreachable.
+      } finally {
+        checking = false;
       }
     }
 
     syncUiVersion();
+    const onVisible = () => {
+      if (!document.hidden) syncUiVersion();
+    };
+    globalThis.addEventListener("pageshow", syncUiVersion);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
+      globalThis.removeEventListener("pageshow", syncUiVersion);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 

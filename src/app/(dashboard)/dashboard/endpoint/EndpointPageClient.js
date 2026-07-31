@@ -52,6 +52,7 @@ export default function APIPageClient({ machineId }) {
   const [newKeyLimitError, setNewKeyLimitError] = useState("");
   const [editingKey, setEditingKey] = useState(null);
   const [editTokenLimit, setEditTokenLimit] = useState("");
+  const [editAllowedModels, setEditAllowedModels] = useState("");
   const [editKeyLimitError, setEditKeyLimitError] = useState("");
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
@@ -714,6 +715,7 @@ export default function APIPageClient({ machineId }) {
   const openTokenLimitEditor = (key) => {
     setEditingKey(key);
     setEditTokenLimit(key.tokenLimit == null ? "" : String(key.tokenLimit));
+    setEditAllowedModels((key.allowedModels || []).join(", "));
     setEditKeyLimitError("");
   };
 
@@ -729,7 +731,12 @@ export default function APIPageClient({ machineId }) {
       const res = await fetch(`/api/keys/${editingKey.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenLimit: parsedLimit.value }),
+        body: JSON.stringify({
+          tokenLimit: parsedLimit.value,
+          allowedModels: [...new Set(
+            editAllowedModels.split(",").map((model) => model.trim()).filter(Boolean)
+          )],
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -742,11 +749,37 @@ export default function APIPageClient({ machineId }) {
       )));
       setEditingKey(null);
       setEditTokenLimit("");
+      setEditAllowedModels("");
       setEditKeyLimitError("");
     } catch (error) {
       console.log("Error updating token limit:", error);
       setEditKeyLimitError("Failed to update token limit.");
     }
+  };
+
+  const handleResetUsedTokens = (key) => {
+    setConfirmState({
+      title: "Reset Token Usage",
+      message: `Reset the used token counter for "${key.name}" to 0?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const res = await fetch(`/api/keys/${key.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resetUsedTokens: true }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setKeys((previous) => previous.map((item) => (
+              item.id === key.id ? data.key : item
+            )));
+          }
+        } catch (error) {
+          console.log("Error resetting token usage:", error);
+        }
+      },
+    });
   };
 
   const maskKey = (fullKey) => {
@@ -1175,16 +1208,10 @@ export default function APIPageClient({ machineId }) {
                       </div>
 
                       <div className="mt-4 max-w-xl">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                          <span className={limitReached ? "font-semibold text-red-500" : "font-medium text-text-main"}>
-                            {formatTokenCount(usedTokens)} used
-                          </span>
-                          <span className="text-text-muted">
-                            {hasTokenLimit
-                              ? `${formatTokenCount(tokenLimit)} token limit`
-                              : "Unlimited tokens"}
-                          </span>
-                        </div>
+                        <p className={`text-xs ${limitReached ? "font-semibold text-red-500" : "text-text-main"}`}>
+                          Usage: {formatTokenCount(usedTokens)}
+                          {hasTokenLimit ? ` / ${formatTokenCount(tokenLimit)} tokens` : " / Unlimited"}
+                        </p>
                         <div className="mt-2 h-2 overflow-hidden rounded-full bg-bg-alt">
                           <div
                             className={`h-full rounded-full transition-[width] duration-300 ${
@@ -1200,6 +1227,19 @@ export default function APIPageClient({ machineId }) {
                         <p className="mt-2 text-[11px] text-text-muted">
                           Created {new Date(key.createdAt).toLocaleDateString()}
                         </p>
+                        {key.allowedModels?.length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className="font-medium text-text-main">Allowed Models:</span>
+                            {key.allowedModels.map((model) => (
+                              <code
+                                key={model}
+                                className="rounded-md bg-bg-alt px-1.5 py-0.5 font-mono text-[11px] text-text-muted"
+                              >
+                                {model}
+                              </code>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1209,9 +1249,18 @@ export default function APIPageClient({ machineId }) {
                         onClick={() => openTokenLimitEditor(key)}
                         className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
                         title="Edit token limit"
+                        aria-label={`Edit ${key.name}`}
                       >
-                        <span className="material-symbols-outlined text-[17px]">data_usage</span>
-                        <span className="hidden md:inline">Limit</span>
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetUsedTokens(key)}
+                        className="rounded-xl p-2 text-amber-500 transition-colors hover:bg-amber-500/10"
+                        title="Reset tokens"
+                        aria-label={`Reset token usage for ${key.name}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">restart_alt</span>
                       </button>
                       <Toggle
                         size="sm"
@@ -1302,13 +1351,14 @@ export default function APIPageClient({ machineId }) {
         </div>
       </Modal>
 
-      {/* Edit Token Limit Modal */}
+      {/* Edit API Key limits Modal */}
       <Modal
         isOpen={!!editingKey}
-        title="Edit Token Limit"
+        title={`Edit API Key: ${editingKey?.name || ""}`}
         onClose={() => {
           setEditingKey(null);
           setEditTokenLimit("");
+          setEditAllowedModels("");
           setEditKeyLimitError("");
         }}
       >
@@ -1327,7 +1377,7 @@ export default function APIPageClient({ machineId }) {
             </div>
           </div>
           <Input
-            label="Token Limit"
+            label="Token Limit (optional)"
             type="number"
             min="0"
             step="1"
@@ -1340,14 +1390,22 @@ export default function APIPageClient({ machineId }) {
             hint="Leave blank for unlimited. Changing the limit does not reset used tokens."
             error={editKeyLimitError}
           />
+          <Input
+            label="Allowed Models (optional, comma-separated)"
+            value={editAllowedModels}
+            onChange={(e) => setEditAllowedModels(e.target.value)}
+            placeholder="e.g. claude-sonnet-4, openai/gpt-4o"
+            hint="Leave blank to allow every model."
+          />
           <div className="flex gap-2">
             <Button onClick={handleUpdateTokenLimit} fullWidth>
-              Save Limit
+              Save Changes
             </Button>
             <Button
               onClick={() => {
                 setEditingKey(null);
                 setEditTokenLimit("");
+                setEditAllowedModels("");
                 setEditKeyLimitError("");
               }}
               variant="ghost"

@@ -20,8 +20,15 @@ function applyDocumentNoStore(response) {
   return response;
 }
 
-function nextDocumentResponse() {
-  return applyDocumentNoStore(NextResponse.next());
+function nextDocumentResponse(request) {
+  const response = applyDocumentNoStore(NextResponse.next());
+  if (
+    request?.nextUrl?.searchParams?.has("_duwn_ui")
+    || request?.nextUrl?.searchParams?.has("_duwn_purge")
+  ) {
+    response.headers.set("Clear-Site-Data", "\"cache\"");
+  }
+  return response;
 }
 
 function redirectDocumentResponse(url) {
@@ -274,7 +281,7 @@ export async function proxy(request) {
     if (!requireLogin) {
       return pathname === "/dashboard"
         ? redirectDashboardHome(request)
-        : nextDocumentResponse();
+        : nextDocumentResponse(request);
     }
 
     // Verify JWT token
@@ -283,7 +290,7 @@ export async function proxy(request) {
       if (await verifyDashboardAuthToken(token)) {
         return pathname === "/dashboard"
           ? redirectDashboardHome(request)
-          : nextDocumentResponse();
+          : nextDocumentResponse(request);
       } else {
         return redirectDocumentResponse(new URL("/login", request.url));
       }

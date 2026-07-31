@@ -33,7 +33,32 @@ describe("API key token limits", () => {
 
     expect(columns.tokenLimit).toBeDefined();
     expect(columns.usedTokens).toBeDefined();
+    expect(columns.allowedModels).toBeDefined();
     expect(String(columns.usedTokens.dflt_value)).toBe("0");
+  });
+
+  it("persists model restrictions and can reset used token usage", async () => {
+    const {
+      createApiKey,
+      getApiKeyById,
+      incrementUsedTokens,
+      updateApiKey,
+    } = await import("@/lib/db/repos/apiKeysRepo.js");
+    const { getApiKeyAccess } = await import("@/sse/services/auth.js");
+
+    const key = await createApiKey("Restricted", "machine-test", 100, ["openai", "claude/sonnet"]);
+    await incrementUsedTokens(key.key, 25);
+
+    expect((await getApiKeyAccess(key.key, "openai/gpt-4o")).valid).toBe(true);
+    expect((await getApiKeyAccess(key.key, "claude/sonnet")).valid).toBe(true);
+    expect(await getApiKeyAccess(key.key, "gemini/flash")).toMatchObject({
+      valid: false,
+      status: 403,
+      reason: "model_not_allowed",
+    });
+
+    await updateApiKey(key.id, { usedTokens: 0 });
+    expect((await getApiKeyById(key.id)).usedTokens).toBe(0);
   });
 
   it("persists limits and atomically increments usage only once per stored request", async () => {

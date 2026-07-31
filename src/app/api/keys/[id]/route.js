@@ -38,6 +38,13 @@ export async function PUT(request, { params }) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
+    if (Object.hasOwn(body, "allowedModels")) {
+      if (!Array.isArray(body.allowedModels)) {
+        return NextResponse.json({ error: "Allowed models must be a list" }, { status: 400 });
+      }
+      updateData.allowedModels = body.allowedModels;
+    }
+    if (body.resetUsedTokens === true) updateData.usedTokens = 0;
 
     const updated = await updateApiKey(id, updateData);
 

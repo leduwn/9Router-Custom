@@ -2,6 +2,21 @@ import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
 import { parseTokenLimit } from "../../apiKeyLimits.js";
 
+function parseAllowedModels(value) {
+  if (value == null || value === "") return [];
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((model) => String(model).trim()).filter(Boolean))];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? [...new Set(parsed.map((model) => String(model).trim()).filter(Boolean))]
+      : [];
+  } catch {
+    return String(value).split(",").map((model) => model.trim()).filter(Boolean);
+  }
+}
+
 function rowToKey(row) {
   if (!row) return null;
   return {
@@ -12,6 +27,7 @@ function rowToKey(row) {
     isActive: row.isActive === 1 || row.isActive === true,
     tokenLimit: row.tokenLimit == null ? null : Number(row.tokenLimit),
     usedTokens: Number(row.usedTokens) || 0,
+    allowedModels: parseAllowedModels(row.allowedModels),
     createdAt: row.createdAt,
   };
 }
@@ -34,7 +50,7 @@ export async function getApiKeyByKey(key) {
   return rowToKey(row);
 }
 
-export async function createApiKey(name, machineId, tokenLimit = null) {
+export async function createApiKey(name, machineId, tokenLimit = null, allowedModels = []) {
   if (!machineId) throw new Error("machineId is required");
   const normalizedTokenLimit = parseTokenLimit(tokenLimit) ?? null;
   const db = await getAdapter();
@@ -48,11 +64,12 @@ export async function createApiKey(name, machineId, tokenLimit = null) {
     isActive: true,
     tokenLimit: normalizedTokenLimit,
     usedTokens: 0,
+    allowedModels: parseAllowedModels(allowedModels),
     createdAt: new Date().toISOString(),
   };
   db.run(
-    `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
-    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.tokenLimit, 0, apiKey.createdAt]
+    `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.tokenLimit, 0, JSON.stringify(apiKey.allowedModels), apiKey.createdAt]
   );
   return apiKey;
 }
@@ -67,9 +84,12 @@ export async function updateApiKey(id, data) {
     if (Object.hasOwn(normalizedData, "tokenLimit")) {
       normalizedData.tokenLimit = parseTokenLimit(normalizedData.tokenLimit);
     }
+    if (Object.hasOwn(normalizedData, "allowedModels")) {
+      normalizedData.allowedModels = parseAllowedModels(normalizedData.allowedModels);
+    }
     const merged = { ...rowToKey(row), ...normalizedData };
     db.run(
-      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ?, tokenLimit = ?, usedTokens = ? WHERE id = ?`,
+      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ?, tokenLimit = ?, usedTokens = ?, allowedModels = ? WHERE id = ?`,
       [
         merged.key,
         merged.name,
@@ -77,6 +97,7 @@ export async function updateApiKey(id, data) {
         merged.isActive ? 1 : 0,
         merged.tokenLimit,
         merged.usedTokens,
+        JSON.stringify(merged.allowedModels || []),
         id,
       ]
     );
