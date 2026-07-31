@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
+import { incrementUsedTokensWithAdapter } from "./apiKeysRepo.js";
 
 function maskApiKey(key) {
   if (!key || typeof key !== "string") return null;
@@ -246,8 +247,9 @@ export async function saveRequestUsage(entry) {
     entry.cost = await calculateCost(entry.provider, entry.model, entry.tokens);
 
     const tokens = entry.tokens || {};
-    const promptTokens = tokens.prompt_tokens || tokens.input_tokens || 0;
-    const completionTokens = tokens.completion_tokens || tokens.output_tokens || 0;
+    const promptTokens = Number(tokens.prompt_tokens ?? tokens.input_tokens) || 0;
+    const completionTokens = Number(tokens.completion_tokens ?? tokens.output_tokens) || 0;
+    const consumedTokens = promptTokens + completionTokens;
 
     let inserted = false;
 
@@ -287,6 +289,10 @@ export async function saveRequestUsage(entry) {
           stringifyJson(tokens), stringifyJson({}),
         ]
       );
+
+      if (Number.isSafeInteger(consumedTokens) && consumedTokens > 0) {
+        incrementUsedTokensWithAdapter(db, entry.apiKey, consumedTokens);
+      }
 
       const dateKey = getLocalDateKey(entry.timestamp);
       const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);

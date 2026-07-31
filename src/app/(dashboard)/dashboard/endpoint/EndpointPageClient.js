@@ -24,11 +24,35 @@ import EndpointRow from "./components/EndpointRow";
 import StatusAlert from "./components/StatusAlert";
 import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
+
+const TOKEN_NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
+
+function parseTokenLimitInput(value) {
+  if (value.trim() === "") return { value: null, error: null };
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    return {
+      value: null,
+      error: "Enter a non-negative whole number, or leave blank for unlimited.",
+    };
+  }
+  return { value: parsed, error: null };
+}
+
+function formatTokenCount(value) {
+  return TOKEN_NUMBER_FORMATTER.format(Number(value) || 0);
+}
+
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyTokenLimit, setNewKeyTokenLimit] = useState("");
+  const [newKeyLimitError, setNewKeyLimitError] = useState("");
+  const [editingKey, setEditingKey] = useState(null);
+  const [editTokenLimit, setEditTokenLimit] = useState("");
+  const [editKeyLimitError, setEditKeyLimitError] = useState("");
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
 
@@ -616,12 +640,20 @@ export default function APIPageClient({ machineId }) {
 
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;
+    const parsedLimit = parseTokenLimitInput(newKeyTokenLimit);
+    if (parsedLimit.error) {
+      setNewKeyLimitError(parsedLimit.error);
+      return;
+    }
 
     try {
       const res = await fetch("/api/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName }),
+        body: JSON.stringify({
+          name: newKeyName,
+          tokenLimit: parsedLimit.value,
+        }),
       });
       const data = await res.json();
 
@@ -629,10 +661,15 @@ export default function APIPageClient({ machineId }) {
         setCreatedKey(data.key);
         await fetchData();
         setNewKeyName("");
+        setNewKeyTokenLimit("");
+        setNewKeyLimitError("");
         setShowAddModal(false);
+      } else {
+        setNewKeyLimitError(data.error || "Failed to create API key.");
       }
     } catch (error) {
       console.log("Error creating key:", error);
+      setNewKeyLimitError("Failed to create API key.");
     }
   };
 
@@ -671,6 +708,44 @@ export default function APIPageClient({ machineId }) {
       }
     } catch (error) {
       console.log("Error toggling key:", error);
+    }
+  };
+
+  const openTokenLimitEditor = (key) => {
+    setEditingKey(key);
+    setEditTokenLimit(key.tokenLimit == null ? "" : String(key.tokenLimit));
+    setEditKeyLimitError("");
+  };
+
+  const handleUpdateTokenLimit = async () => {
+    if (!editingKey) return;
+    const parsedLimit = parseTokenLimitInput(editTokenLimit);
+    if (parsedLimit.error) {
+      setEditKeyLimitError(parsedLimit.error);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/keys/${editingKey.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenLimit: parsedLimit.value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEditKeyLimitError(data.error || "Failed to update token limit.");
+        return;
+      }
+
+      setKeys((previous) => previous.map((key) => (
+        key.id === editingKey.id ? data.key : key
+      )));
+      setEditingKey(null);
+      setEditTokenLimit("");
+      setEditKeyLimitError("");
+    } catch (error) {
+      console.log("Error updating token limit:", error);
+      setEditKeyLimitError("Failed to update token limit.");
     }
   };
 
@@ -1038,72 +1113,139 @@ export default function APIPageClient({ machineId }) {
             action={<Button icon="add" onClick={() => setShowAddModal(true)}>Create Key</Button>}
           />
         ) : (
-          <div className="flex flex-col">
-            {keys.map((key) => (
-              <div
-                key={key.id}
-                className={`group flex items-center justify-between py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${key.isActive === false ? "opacity-60" : ""}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{key.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <code className="text-xs text-text-muted font-mono">
-                      {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
-                    </code>
-                    <button
-                      onClick={() => toggleKeyVisibility(key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                      title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => copy(key.key, key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {copied === key.id ? "check" : "content_copy"}
-                      </span>
-                    </button>
-                  </div>
-                  <p className="text-xs text-text-muted mt-1">
-                    Created {new Date(key.createdAt).toLocaleDateString()}
-                  </p>
-                  {key.isActive === false && (
-                    <p className="text-xs text-orange-500 mt-1">Paused</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Toggle
-                    size="sm"
-                    checked={key.isActive ?? true}
-                    onChange={(checked) => {
-                      if (key.isActive && !checked) {
-                        setConfirmState({
-                          title: "Pause API Key",
-                          message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                          onConfirm: async () => {
-                            setConfirmState(null);
+          <div className="flex flex-col gap-3">
+            {keys.map((key) => {
+              const usedTokens = Number(key.usedTokens) || 0;
+              const hasTokenLimit = key.tokenLimit != null;
+              const tokenLimit = hasTokenLimit ? Number(key.tokenLimit) : null;
+              const limitReached = hasTokenLimit && usedTokens >= tokenLimit;
+              const usagePercent = hasTokenLimit
+                ? (tokenLimit === 0 ? 100 : Math.min((usedTokens / tokenLimit) * 100, 100))
+                : 0;
+
+              return (
+                <div
+                  key={key.id}
+                  className={`group rounded-2xl border border-border-subtle bg-surface-2/45 p-4 transition-colors hover:border-primary/25 hover:bg-surface-2/70 ${
+                    key.isActive === false ? "opacity-60" : ""
+                  }`}
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-text-main">{key.name}</p>
+                        {limitReached && (
+                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-500">
+                            Limit reached
+                          </span>
+                        )}
+                        {key.isActive === false && (
+                          <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-500">
+                            Paused
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex min-w-0 items-center gap-1.5">
+                        <code className="min-w-0 truncate font-mono text-xs text-text-muted">
+                          {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => toggleKeyVisibility(key.id)}
+                          className="rounded-lg p-1 text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                          title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
+                          aria-label={visibleKeys.has(key.id) ? "Hide API key" : "Show API key"}
+                        >
+                          <span className="material-symbols-outlined text-[15px]">
+                            {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copy(key.key, key.id)}
+                          className="rounded-lg p-1 text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                          title="Copy key"
+                          aria-label="Copy API key"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">
+                            {copied === key.id ? "check" : "content_copy"}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="mt-4 max-w-xl">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className={limitReached ? "font-semibold text-red-500" : "font-medium text-text-main"}>
+                            {formatTokenCount(usedTokens)} used
+                          </span>
+                          <span className="text-text-muted">
+                            {hasTokenLimit
+                              ? `${formatTokenCount(tokenLimit)} token limit`
+                              : "Unlimited tokens"}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-bg-alt">
+                          <div
+                            className={`h-full rounded-full transition-[width] duration-300 ${
+                              limitReached
+                                ? "bg-red-500"
+                                : hasTokenLimit
+                                  ? "bg-gradient-to-r from-primary to-cyan-400"
+                                  : "bg-primary/25"
+                            }`}
+                            style={{ width: hasTokenLimit ? `${usagePercent}%` : "100%" }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[11px] text-text-muted">
+                          Created {new Date(key.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openTokenLimitEditor(key)}
+                        className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                        title="Edit token limit"
+                      >
+                        <span className="material-symbols-outlined text-[17px]">data_usage</span>
+                        <span className="hidden md:inline">Limit</span>
+                      </button>
+                      <Toggle
+                        size="sm"
+                        checked={key.isActive ?? true}
+                        onChange={(checked) => {
+                          if (key.isActive && !checked) {
+                            setConfirmState({
+                              title: "Pause API Key",
+                              message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                              onConfirm: async () => {
+                                setConfirmState(null);
+                                handleToggleKey(key.id, checked);
+                              }
+                            });
+                          } else {
                             handleToggleKey(key.id, checked);
                           }
-                        });
-                      } else {
-                        handleToggleKey(key.id, checked);
-                      }
-                    }}
-                    title={key.isActive ? "Pause key" : "Resume key"}
-                  />
-                  <button
-                    onClick={() => handleDeleteKey(key.id)}
-                    className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
+                        }}
+                        title={key.isActive ? "Pause key" : "Resume key"}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteKey(key.id)}
+                        className="rounded-xl p-2 text-red-500 transition-colors hover:bg-red-500/10"
+                        title="Delete key"
+                        aria-label={`Delete ${key.name}`}
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
@@ -1115,6 +1257,8 @@ export default function APIPageClient({ machineId }) {
         onClose={() => {
           setShowAddModal(false);
           setNewKeyName("");
+          setNewKeyTokenLimit("");
+          setNewKeyLimitError("");
         }}
       >
         <div className="flex flex-col gap-4">
@@ -1124,6 +1268,20 @@ export default function APIPageClient({ machineId }) {
             onChange={(e) => setNewKeyName(e.target.value)}
             placeholder="Production Key"
           />
+          <Input
+            label="Token Limit"
+            type="number"
+            min="0"
+            step="1"
+            value={newKeyTokenLimit}
+            onChange={(e) => {
+              setNewKeyTokenLimit(e.target.value);
+              setNewKeyLimitError("");
+            }}
+            placeholder="Unlimited"
+            hint="Maximum total tokens this key can use. Leave blank for unlimited."
+            error={newKeyLimitError}
+          />
           <div className="flex gap-2">
             <Button onClick={handleCreateKey} fullWidth disabled={!newKeyName.trim()}>
               Create
@@ -1132,6 +1290,65 @@ export default function APIPageClient({ machineId }) {
               onClick={() => {
                 setShowAddModal(false);
                 setNewKeyName("");
+                setNewKeyTokenLimit("");
+                setNewKeyLimitError("");
+              }}
+              variant="ghost"
+              fullWidth
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Token Limit Modal */}
+      <Modal
+        isOpen={!!editingKey}
+        title="Edit Token Limit"
+        onClose={() => {
+          setEditingKey(null);
+          setEditTokenLimit("");
+          setEditKeyLimitError("");
+        }}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-2xl border border-border-subtle bg-surface-2/60 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-[19px]">data_usage</span>
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-text-main">{editingKey?.name}</p>
+                <p className="mt-0.5 text-xs text-text-muted">
+                  {formatTokenCount(editingKey?.usedTokens)} tokens used
+                </p>
+              </div>
+            </div>
+          </div>
+          <Input
+            label="Token Limit"
+            type="number"
+            min="0"
+            step="1"
+            value={editTokenLimit}
+            onChange={(e) => {
+              setEditTokenLimit(e.target.value);
+              setEditKeyLimitError("");
+            }}
+            placeholder="Unlimited"
+            hint="Leave blank for unlimited. Changing the limit does not reset used tokens."
+            error={editKeyLimitError}
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleUpdateTokenLimit} fullWidth>
+              Save Limit
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingKey(null);
+                setEditTokenLimit("");
+                setEditKeyLimitError("");
               }}
               variant="ghost"
               fullWidth

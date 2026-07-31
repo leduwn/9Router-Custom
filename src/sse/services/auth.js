@@ -1,7 +1,8 @@
-import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
+import { getProviderConnections, getApiKeyByKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
+import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import * as log from "../utils/logger.js";
 
@@ -320,6 +321,54 @@ export function extractApiKey(request) {
  * Validate API key (optional - for local use can skip)
  */
 export async function isValidApiKey(apiKey) {
-  if (!apiKey) return false;
-  return await validateApiKey(apiKey);
+  const access = await getApiKeyAccess(apiKey);
+  return access.valid;
+}
+
+export async function getApiKeyAccess(apiKey) {
+  if (!apiKey) {
+    return {
+      valid: false,
+      status: HTTP_STATUS.UNAUTHORIZED,
+      reason: "missing",
+      message: "Missing API key",
+      keyInfo: null,
+    };
+  }
+
+  const keyInfo = await getApiKeyByKey(apiKey);
+  if (!keyInfo || !keyInfo.isActive) {
+    return {
+      valid: false,
+      status: HTTP_STATUS.UNAUTHORIZED,
+      reason: "invalid",
+      message: "Invalid API key",
+      keyInfo,
+    };
+  }
+
+  if (
+    keyInfo.tokenLimit != null
+    && keyInfo.usedTokens >= keyInfo.tokenLimit
+  ) {
+    log.warn(
+      "AUTH",
+      `Token limit exceeded for key (used: ${keyInfo.usedTokens}, limit: ${keyInfo.tokenLimit})`
+    );
+    return {
+      valid: false,
+      status: HTTP_STATUS.RATE_LIMITED,
+      reason: "token_limit_exceeded",
+      message: "Token limit exceeded",
+      keyInfo,
+    };
+  }
+
+  return {
+    valid: true,
+    status: null,
+    reason: null,
+    message: null,
+    keyInfo,
+  };
 }
