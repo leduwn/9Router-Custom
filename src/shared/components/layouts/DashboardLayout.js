@@ -44,6 +44,22 @@ export default function DashboardLayout({ children }) {
     let active = true;
     let checking = false;
 
+    async function retireLegacyPwaCache() {
+      try {
+        if ("serviceWorker" in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+        if ("caches" in globalThis) {
+          const cacheNames = await globalThis.caches.keys();
+          await Promise.all(cacheNames.map((cacheName) => globalThis.caches.delete(cacheName)));
+        }
+      } catch {
+        // Cache cleanup is best-effort; the dashboard remains usable if browser
+        // privacy settings block service-worker or CacheStorage access.
+      }
+    }
+
     function removeUiCacheParams() {
       const target = new URL(globalThis.location.href);
       const hadUiBuild = target.searchParams.has("_duwn_ui");
@@ -87,7 +103,7 @@ export default function DashboardLayout({ children }) {
       }
     }
 
-    syncUiVersion();
+    retireLegacyPwaCache().finally(syncUiVersion);
     const onVisible = () => {
       if (!document.hidden) syncUiVersion();
     };

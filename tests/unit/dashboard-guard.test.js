@@ -305,6 +305,15 @@ describe("dashboard guard helpers", () => {
     expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
   });
 
+  it("retires legacy PWA storage on the explicit purge URL", async () => {
+    const response = await proxy(request(
+      "/dashboard/endpoint?_duwn_purge=1",
+      { host: "localhost:20128" },
+    ));
+
+    expect(response.headers.get("clear-site-data")).toBe("\"cache\", \"storage\"");
+  });
+
   it("extracts bearer API keys before x-api-key", () => {
     const apiRequest = request("/v1/chat/completions", {
       authorization: "Bearer bearer-key",

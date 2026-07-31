@@ -25,6 +25,7 @@ for (const sourcePath of [
   "package.json",
   "public/favicon.svg",
   "public/icons",
+  "public/sw.js",
   "src/app/(dashboard)",
   "src/app/globals.css",
   "src/app/landing",
@@ -111,6 +112,19 @@ const nextConfig = {
       { source: "/login", headers: noStoreDocumentHeaders },
       { source: "/landing", headers: noStoreDocumentHeaders },
       { source: "/dashboard/:path*", headers: noStoreDocumentHeaders },
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, max-age=0, must-revalidate"
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/"
+          }
+        ]
+      },
       {
         source: "/providers/:path*",
         headers: [

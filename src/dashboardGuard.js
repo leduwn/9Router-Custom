@@ -22,10 +22,12 @@ function applyDocumentNoStore(response) {
 
 function nextDocumentResponse(request) {
   const response = applyDocumentNoStore(NextResponse.next());
-  if (
-    request?.nextUrl?.searchParams?.has("_duwn_ui")
-    || request?.nextUrl?.searchParams?.has("_duwn_purge")
-  ) {
+  if (request?.nextUrl?.searchParams?.has("_duwn_purge")) {
+    // One-time recovery path for browsers that still have the retired PWA
+    // worker. "storage" removes CacheStorage/service-worker registrations but
+    // deliberately leaves authentication cookies intact.
+    response.headers.set("Clear-Site-Data", "\"cache\", \"storage\"");
+  } else if (request?.nextUrl?.searchParams?.has("_duwn_ui")) {
     response.headers.set("Clear-Site-Data", "\"cache\"");
   }
   return response;

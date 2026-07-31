@@ -1,22 +1,20 @@
-self.addEventListener('push', function (event) {
-  if (event.data) {
-    const data = event.data.json()
-    const options = {
-      body: data.body,
-      icon: data.icon || '/icons/icon-192.svg',
-      badge: '/icons/icon-192.svg',
-      vibrate: [100, 50, 100],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: '2',
-      },
-    }
-    event.waitUntil(self.registration.showNotification(data.title, options))
-  }
-})
+// Retire the legacy PWA worker. Older releases cached the dashboard shell and
+// could keep serving it after a deployment, mixing old pages with new chunks.
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
 
-self.addEventListener('notificationclick', function (event) {
-  console.log('Notification click received.')
-  event.notification.close()
-  event.waitUntil(clients.openWindow('/'))
-})
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+    await self.clients.claim();
+    await self.registration.unregister();
+
+    const windows = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+    await Promise.all(windows.map((client) => client.navigate(client.url)));
+  })());
+});
