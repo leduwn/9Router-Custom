@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import PropTypes from "prop-types";
 import ProviderIcon from "@/shared/components/ProviderIcon";
@@ -112,7 +108,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/mitm"))
     return {
       title: "MITM Proxy",
-      description: "Intercept CLI tool traffic and route through Duwn",
+      description: "Intercept CLI tool traffic and route it through Duwn",
       icon: "security",
       breadcrumbs: [],
     };
@@ -140,7 +136,191 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/skills"))
     return {
       title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use Duwn — no install needed",
+      description: "Copy a link and give your AI access through Duwn — no install needed",
+      icon: "extension",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/endpoint"))
+    return {
+      title: "Endpoint",
+      description: "API endpoint configuration",
+      icon: "api",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/profile"))
+    return {
+      title: "Settings",
+      description: "Manage your preferences",
+      icon: "settings",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/translator"))
+    return {
+      title: "Translator",
+      description: "Debug translation flow between formats",
+      icon: "translate",
+      breadcrumbs: [],
+    };
+  if (pathname.includes("/console-log"))
+    return {
+      title: "Console Log",
+      description: "Live server console output",
+      icon: "monitor",
+      breadcrumbs: [],
+    };
+  if (pathname === "/dashboard")
+    return {
+      title: "Endpoint",
+      description: "API endpoint configuration",
+      icon: "api",
+      breadcrumbs: [],
+    };
+  return { title: "", description: "", breadcrumbs: [] };
+};
+
+export default function Header({ onMenuClick, showMenuButton = true }) {
+  const pathname = usePathname();
+  const [displayName, setDisplayName] = useState("");
+  const [loginMethod, setLoginMethod] = useState("");
+
+  // Memoize page info to prevent unnecessary recalculations
+  const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
+  const { title, description, icon, breadcrumbs } = pageInfo;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAuthStatus() {
+      try {
+        const res = await fetch("/api/auth/status", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setDisplayName(data?.displayName || data?.oidcName || data?.oidcEmail || "");
+          setLoginMethod(data?.loginMethod || "");
+        }
+      } catch {
+        if (!cancelled) {
+          setDisplayName("");
+          setLoginMethod("");
+        }
+      }
+    }
+
+    loadAuthStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) {
+        window.location.assign("/login");
+      }
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    }
+  };
+
+  return (
+    <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-border-subtle bg-surface/72 px-4 py-3 backdrop-blur-xl lg:px-9">
+      {/* Mobile menu button */}
+      <div className="flex items-center gap-3 lg:hidden shrink-0">
+        {showMenuButton && (
+          <button
+            onClick={onMenuClick}
+            className="flex size-9 items-center justify-center rounded-xl text-text-main transition-colors hover:bg-surface-2 hover:text-primary"
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+        )}
+      </div>
+
+      {/* Page title with breadcrumbs */}
+      <div className="flex flex-col min-w-0 flex-1">
+        {breadcrumbs.length > 0 ? (
+          <div className="flex items-center gap-2">
+            {breadcrumbs.map((crumb, index) => (
+              <div
+                key={`${crumb.label}-${crumb.href || "current"}`}
+                className="flex items-center gap-2"
+              >
+                {index > 0 && (
+                  <span className="material-symbols-outlined text-text-muted text-base">
+                    chevron_right
+                  </span>
+                )}
+                {crumb.href ? (
+                  <Link
+                    href={crumb.href}
+                    className="text-text-muted hover:text-primary transition-colors"
+                  >
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {crumb.image && (
+                      <ProviderIcon
+                        src={crumb.image}
+                        alt={crumb.label}
+                        size={28}
+                        className="object-contain rounded max-w-[28px] max-h-[28px]"
+                        fallbackText={crumb.label.slice(0, 2).toUpperCase()}
+                      />
+                    )}
+                    <h1 className="truncate text-base font-bold tracking-[-0.025em] text-text-main lg:text-[22px]">
+                      {translate(crumb.label)}
+                    </h1>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : title ? (
+          <div>
+            <div className="flex items-center gap-2">
+              {icon && (
+                <span className="material-symbols-outlined text-primary text-xl lg:text-2xl">
+                  {icon}
+                </span>
+              )}
+              <h1 className="truncate text-base font-bold tracking-[-0.025em] lg:text-[22px]">
+                {translate(title)}
+              </h1>
+            </div>
+            {description && (
+              <p className="hidden lg:block text-sm text-text-muted truncate">
+                {translate(description)}
+              </p>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Right actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        {displayName && loginMethod === "OIDC" && (
+          <div className="hidden sm:flex items-center max-w-[220px] px-3 py-1.5 rounded-full border border-border bg-surface/70 text-xs text-text-muted truncate">
+            <span className="material-symbols-outlined text-[14px] mr-1.5 text-primary">person</span>
+            <span className="truncate">{displayName}</span>
+            <span className="ml-2 shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+              OIDC
+            </span>
+          </div>
+        )}
+        <HeaderSearch />
+        <ThemeToggle />
+        <HeaderLanguage />
+        <HeaderMenu onLogout={handleLogout} />
+      </div>
+    </header>
+  );
+}
+
+function HeaderSearch() {
+  const visible = useHeaderSearchStore((s) => s.visible);
   const query = useHeaderSearchStore((s) => s.query);
   const placeholder = useHeaderSearchStore((s) => s.placeholder);
   const setQuery = useHeaderSearchStore((s) => s.setQuery);
@@ -157,7 +337,7 @@ const getPageInfo = (pathname) => {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-8 pl-7 pr-7 rounded-lg border border-border bg-surface/60 text-sm focus:outline-none focus:border-primary/50 transition-colors"
+        className="h-9 w-full rounded-xl border border-border bg-surface/80 pl-8 pr-8 text-sm shadow-[var(--shadow-soft)] transition-all placeholder:text-text-subtle focus:border-primary/40 focus:outline-none"
       />
       {query && (
         <button

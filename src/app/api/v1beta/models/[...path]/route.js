@@ -171,181 +171,13 @@ function buildGeminiNativeUrl(requestUrl, model, action) {
 
   for (const [key, value] of sourceUrl.searchParams.entries()) {
     if (key === "key") continue;
-  markAccountUnavailable,
-} from "@/sse/services/auth.js";
-import { getSettings } from "@/lib/localDb";
-import { PROVIDER_MODELS } from "@/shared/constants/models";
-import { GEMINI_NATIVE_TTS_FETCH_TIMEOUT_MS } from "open-sse/config/runtimeConfig.js";
-import { initTranslators } from "open-sse/translator/index.js";
-
-let initialized = false;
-const GEMINI_NATIVE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-// Gemini model id charset (matches sanitizeGeminiFunctionName); blocks path traversal in upstream URL.
-const GEMINI_NATIVE_MODEL_PATTERN = /^[a-zA-Z0-9_.:-]+$/;
-
-/**
- * Initialize translators once
- */
-async function ensureInitialized() {
-  if (!initialized) {
-    await initTranslators();
-    initialized = true;
-  }
-}
-
-/**
- * Handle CORS preflight
- */
-export async function OPTIONS() {
-  return new Response(null, {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "*"
-    }
-  });
-}
-
-/**
- * POST /v1beta/models/{model}:generateContent        — non-streaming
- * POST /v1beta/models/{model}:streamGenerateContent  — streaming (SSE)
- *
- * Streaming intent is determined by the URL action suffix (canonical Gemini API
- * convention), NOT by a body field. generationConfig.stream is not a real
- * Gemini API field and Gemini CLI never sets it.
- *
- * The @google/genai SDK always uses :streamGenerateContent?alt=sse for chat.
- * The upstream handleChat returns OpenAI SSE format; we transform it to
- * Gemini SSE format on the fly via transformOpenAISSEToGeminiSSE().
- */
-export async function POST(request, { params }) {
-  await ensureInitialized();
-
-  try {
-    const { path } = await params;
-    // path = ["provider", "model:action"] or ["model:action"]
-
-    let model;
-    let action; // ":generateContent" | ":streamGenerateContent"
-
-    if (path.length >= 2) {
-      // Format: /v1beta/models/provider/model:generateContent
-      const provider = path[0];
-      const modelAction = path[1];
-      action = modelAction.includes(":streamGenerateContent")
-        ? ":streamGenerateContent"
-        : ":generateContent";
-      const modelName = modelAction
-        .replace(":streamGenerateContent", "")
-        .replace(":generateContent", "");
-      model = provider + "/" + modelName;
-    } else {
-      // Format: /v1beta/models/model:generateContent
-      const modelAction = path[0];
-      action = modelAction.includes(":streamGenerateContent")
-        ? ":streamGenerateContent"
-        : ":generateContent";
-      model = modelAction
-        .replace(":streamGenerateContent", "")
-        .replace(":generateContent", "");
-    }
-
-    const body = await request.json();
-
-    if (isGeminiNativeTtsRequest(model, body)) {
-      return await forwardGeminiNativeRequest(request, body, model, action);
-    }
-
-    // Streaming is determined by URL action suffix:
-    //   :streamGenerateContent => stream: true  (SSE)
-    //   :generateContent       => stream: false (plain JSON)
-    const stream = action === ":streamGenerateContent";
-
-    // Convert Gemini request format to OpenAI/internal format
-    const convertedBody = convertGeminiToInternal(body, model, stream);
-
-    // Create new request with converted body
-    const newRequest = new Request(request.url, {
-      method: "POST",
-      headers: request.headers,
-      body: JSON.stringify(convertedBody),
-    });
-
-    const response = await handleChat(newRequest);
-
-    if (stream) {
-      // Transform OpenAI SSE => Gemini SSE on the fly.
-      // The @google/genai SDK always uses :streamGenerateContent?alt=sse and
-      // expects Gemini SSE chunks (no [DONE] sentinel — stream just closes).
-      return transformOpenAISSEToGeminiSSE(response, model);
-    } else {
-      // Convert OpenAI JSON response => Gemini GenerateContentResponse
-      return await convertOpenAIResponseToGemini(response, model);
-    }
-  } catch (error) {
-    console.log("Error handling Gemini request:", error);
-    return Response.json(
-      { error: { message: error.message, code: 500 } },
-      { status: 500 }
-    );
-  }
-}
-
-function extractGeminiClientApiKey(request) {
-  const authHeader = request.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
-
-  const googleApiKey = request.headers.get("x-goog-api-key");
-  if (googleApiKey) return googleApiKey;
-
-  const url = new URL(request.url);
-  return url.searchParams.get("key");
-}
-
-function normalizeGeminiNativeModel(model) {
-  return String(model || "")
-    .replace(/^models\//, "")
-    .replace(/^gemini\//, "");
-}
-
-function getGeminiTtsModelIds() {
-  return new Set([
-    ...(PROVIDER_MODELS.gemini || [])
-      .filter((model) => (model.kind || model.type) === "tts")
-      .map((model) => model.id),
-    ...(PROVIDER_MODELS["gemini-tts-models"] || []).map((model) => model.id),
-  ]);
-}
-
-function hasAudioResponseModality(body) {
-  const modalities = body?.generationConfig?.responseModalities;
-  return Array.isArray(modalities)
-    && modalities.some((modality) => String(modality).toUpperCase() === "AUDIO");
-}
-
-function isGeminiNativeTtsRequest(model, body) {
-  const rawModel = String(model || "");
-  if (rawModel.includes("/") && !rawModel.startsWith("gemini/") && !rawModel.startsWith("models/")) {
-    return false;
-  }
-
-  const modelId = normalizeGeminiNativeModel(model);
-  return hasAudioResponseModality(body) || getGeminiTtsModelIds().has(modelId);
-}
-
-function buildGeminiNativeUrl(requestUrl, model, action) {
-  const sourceUrl = new URL(requestUrl);
-  const upstreamUrl = new URL(`${GEMINI_NATIVE_BASE_URL}/${normalizeGeminiNativeModel(model)}${action}`);
-
-  for (const [key, value] of sourceUrl.searchParams.entries()) {
-    if (key === "key") continue;
     upstreamUrl.searchParams.append(key, value);
   }
 
   return upstreamUrl.toString();
 }
 
-async function validateGeminiNativeClientKey(request, model) {
+async function validateGeminiNativeClientKey(request, model = null) {
   const settings = await getSettings();
   if (!settings.requireApiKey) return null;
 
@@ -407,13 +239,12 @@ function getSafeGeminiNativeErrorText(error) {
 }
 
 async function forwardGeminiNativeRequest(request, body, model, action) {
-  const authError = await validateGeminiNativeClientKey(request, model);
-  if (authError) return authError;
-
   const modelId = normalizeGeminiNativeModel(model);
   if (!GEMINI_NATIVE_MODEL_PATTERN.test(modelId)) {
     return Response.json({ error: { message: "Invalid model" } }, { status: 400 });
   }
+  const authError = await validateGeminiNativeClientKey(request, `gemini/${modelId}`);
+  if (authError) return authError;
   const excludeConnectionIds = new Set();
   const bodyText = JSON.stringify(body);
   let lastError = null;
