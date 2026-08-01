@@ -4,13 +4,19 @@
   "description": "Duwn-branded 9Router web dashboard",
   "private": true,
   "scripts": {
+    "runtime:build": "node scripts/build-runtime.mjs",
+    "predev": "npm run runtime:build",
     "dev": "next dev --port 20127",
+    "predev:webpack": "npm run runtime:build",
     "dev:webpack": "next dev --webpack --port 20127",
+    "prebuild": "npm run runtime:build",
     "build": "next build --webpack",
     "start": "next start --port 20127",
-    "dev:bun": "bun --bun next dev --webpack --port 20127",
-    "build:bun": "bun --bun next build --webpack",
+    "dev:bun": "npm run runtime:build && bun --bun next dev --webpack --port 20127",
+    "build:bun": "npm run runtime:build && bun --bun next build --webpack",
     "start:bun": "bun ./.next/standalone/server.js",
+    "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc --noEmit -p tsconfig.strict.json",
     "cli:pack": "npm --prefix cli run pack:cli",
     "cli:publish": "npm --prefix cli run publish:cli"
   },
@@ -52,9 +58,15 @@
   "comment_better_sqlite3": "kept in optionalDependencies so npm install doesn't fail on systems without build tools — sql.js is used as fallback at runtime",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
   }
 }

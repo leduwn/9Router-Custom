@@ -133,15 +133,15 @@ for (const [cat, re] of Object.entries(CATEGORIES)) {
 
 // ── 3. Inject vào từng registry file ──
 const registryFiles = fs.readdirSync(REGISTRY_DIR)
-  .filter(f => f.endsWith(".js") && f !== "index.js")
-  .map(f => f.replace(".js", ""));
+  .filter(f => f.endsWith(".ts") && f !== "index.ts")
+  .map(f => f.replace(".ts", ""));
 
 let injected = 0;
 let skipped = 0;
 const results = [];
 
 for (const id of registryFiles) {
-  const filePath = path.join(REGISTRY_DIR, `${id}.js`);
+  const filePath = path.join(REGISTRY_DIR, `${id}.ts`);
   let src = fs.readFileSync(filePath, "utf8");
 
   // Bỏ qua nếu đã có display field

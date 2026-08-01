@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { homedir, tmpdir } from "node:os";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 // CLI bundling needs workspace root so tracing includes hoisted node_modules (slim ~50MB).
@@ -34,6 +35,18 @@ const nextConfig = {
     optimizePackageImports: ["@xyflow/react", "@dnd-kit/core", "@dnd-kit/sortable", "material-symbols", "marked"],
   },
   webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Runtime integrations read user-owned config files from the home folder.
+      // They must not be copied into a standalone build, and tracing them can
+      // cross protected Windows junctions such as "Application Data".
+      const runtimeOnlyTracePatterns = [homedir(), tmpdir()]
+        .map((directory) => `${directory.replaceAll("\\", "/")}/**`);
+      for (const plugin of config.plugins || []) {
+        if (plugin?.constructor?.name === "TraceEntryPointsPlugin" && Array.isArray(plugin.traceIgnores)) {
+          plugin.traceIgnores.push(...runtimeOnlyTracePatterns);
+        }
+      }
+    }
     // Ignore fs/path modules in browser bundle
     if (!isServer) {
       config.resolve.fallback = {

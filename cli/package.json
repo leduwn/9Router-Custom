@@ -7,15 +7,19 @@
   },
   "files": [
     "cli.js",
-    "src",
-    "hooks",
+    "dist",
+    "hooks/postinstall.js",
+    "scripts/build-sources.mjs",
     "app",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "dev": "nodemon -I --watch cli.js --watch src --watch hooks --ext js,json cli.js",
-    "build": "node scripts/build-cli.js",
+    "build:sources": "node scripts/build-sources.mjs",
+    "typecheck": "tsc --noEmit",
+    "typecheck:strict": "tsc --noEmit -p tsconfig.strict.json",
+    "dev": "npm run build:sources && nodemon -I --watch cli.ts --watch src --watch hooks --ext ts,json --exec \"npm run build:sources && node cli.js\"",
+    "build": "npm run build:sources && node dist/scripts/build-cli.js",
     "pack:cli": "npm run build && npm pack --pack-destination ../..",
     "publish:cli": "npm run build && npm publish",
     "postinstall": "node hooks/postinstall.js",
@@ -42,7 +46,9 @@
   ],
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^24.0.0",
     "esbuild": "^0.25.12",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "typescript": "^5.9.0"
   }
 }

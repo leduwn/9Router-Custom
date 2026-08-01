@@ -1,22 +1,14 @@
-#!/usr/bin/env node
+const fs = require("fs");
+const path = require("path");
+const { execFileSync } = require("child_process");
 
-// Postinstall: warm-up SQLite deps into ~/.9router/runtime so the first
-// `9router` start doesn't need network. Failure here is non-fatal —
-// cli.js will retry at runtime if anything is missing.
-const { ensureSqliteRuntime } = require("./sqliteRuntime");
-const { ensureTrayRuntime } = require("./trayRuntime");
-
-try {
-  ensureSqliteRuntime({ silent: false });
-  console.log("[9router] runtime SQLite deps ready");
-} catch (e) {
-  console.warn(`[9router] runtime warm-up skipped: ${e.message}`);
+const cliDir = path.resolve(__dirname, "..");
+process.env.NINEROUTER_CLI_ROOT ||= cliDir;
+const builtPostinstall = path.join(cliDir, "dist", "hooks", "postinstall.js");
+if (!fs.existsSync(builtPostinstall)) {
+  execFileSync(process.execPath, [path.join(cliDir, "scripts", "build-sources.mjs")], {
+    cwd: cliDir,
+    stdio: "inherit",
+  });
 }
-
-try {
-  ensureTrayRuntime({ silent: false });
-} catch (e) {
-  console.warn(`[9router] tray runtime skipped: ${e.message}`);
-}
-
-process.exit(0);
+require(builtPostinstall);

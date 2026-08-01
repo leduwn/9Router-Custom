@@ -236,7 +236,7 @@ function formatEntry(entry, imports = "") {
 }
 
 // --- Main ---
-const files = readdirSync(REGISTRY_DIR).filter(f => f.endsWith(".js") && f !== "index.js");
+const files = readdirSync(REGISTRY_DIR).filter(f => f.endsWith(".ts") && f !== "index.ts");
 let count = 0;
 
 for (const file of files) {
@@ -250,7 +250,18 @@ for (const file of files) {
   // Dynamic import to get entry
   let entry;
   try {
-    const mod = await import(`${join(REGISTRY_DIR, file)}?t=${Date.now()}`);
+    const { build } = await import("esbuild");
+    const result = await build({
+      entryPoints: [join(REGISTRY_DIR, file)],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      target: "node18",
+      write: false,
+      logLevel: "silent",
+    });
+    const code = result.outputFiles[0].text;
+    const mod = await import(`data:text/javascript;base64,${Buffer.from(code).toString("base64")}`);
     entry = mod.default;
   } catch (e) {
     console.error(`SKIP ${file}: ${e.message}`);
