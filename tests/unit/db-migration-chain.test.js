@@ -60,11 +60,71 @@ describe("Schema migrations", () => {
     expect(JSON.parse(settings.data)).toEqual({ foo: "bar" });
   });
 
+  it("upstream schema 1 DB → adds custom API key columns without losing keys", async () => {
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN allowedModels`);
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN usedTokens`);
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN tokenLimit`);
+    db.run(
+      `INSERT INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
+      ["upstream-key", "sk-upstream", "Upstream", "machine-1", 1, "2026-08-08T00:00:00.000Z"]
+    );
+    db.run(`INSERT OR REPLACE INTO _meta(key, value) VALUES('schemaVersion', '1')`);
+    db.run(`INSERT OR REPLACE INTO _meta(key, value) VALUES('backupSchemaVersion', '1')`);
+    db.close?.();
+
+    delete global._dbAdapter;
+    vi.resetModules();
+    const { getAdapter: getAdapter2 } = await import("@/lib/db/driver.js");
+    const db2 = await getAdapter2();
+    const key = db2.get(`SELECT * FROM apiKeys WHERE id = 'upstream-key'`);
+
+    expect(key).toMatchObject({
+      key: "sk-upstream",
+      tokenLimit: null,
+      usedTokens: 0,
+      allowedModels: null,
+    });
+  });
+
+  it("current Duwn DB → keeps API key policy fields across repeated boots", async () => {
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+    db.run(
+      `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ["duwn-key", "sk-duwn", "Duwn", "machine-1", 1, 500, 125, "openai/gpt-5.6", "2026-08-08T00:00:00.000Z"]
+    );
+    db.close?.();
+
+    for (let boot = 0; boot < 2; boot += 1) {
+      delete global._dbAdapter;
+      vi.resetModules();
+      const { getAdapter: getAdapterAgain } = await import("@/lib/db/driver.js");
+      const reopened = await getAdapterAgain();
+      expect(reopened.get(`SELECT * FROM apiKeys WHERE id = 'duwn-key'`)).toMatchObject({
+        tokenLimit: 500,
+        usedTokens: 125,
+        allowedModels: "openai/gpt-5.6",
+      });
+      reopened.close?.();
+    }
+  });
+
   it("fresh DB + legacy db.json → imports data automatically", async () => {
     // Simulate user upgrading: place legacy JSON in DATA_DIR before first boot
     const legacy = {
       settings: { foo: "legacy-value" },
-      apiKeys: [{ id: "k1", key: "abc", name: "test", createdAt: new Date().toISOString() }],
+      apiKeys: [{
+        id: "k1",
+        key: "abc",
+        name: "test",
+        tokenLimit: 100,
+        usedTokens: 25,
+        allowedModels: "openai/gpt-5.6",
+        createdAt: new Date().toISOString(),
+      }],
       modelAliases: { "gpt-4": "gpt-4-turbo" },
     };
     fs.writeFileSync(path.join(tempDir, "db.json"), JSON.stringify(legacy));
@@ -78,6 +138,9 @@ describe("Schema migrations", () => {
     const keys = db.all(`SELECT * FROM apiKeys`);
     expect(keys).toHaveLength(1);
     expect(keys[0].key).toBe("abc");
+    expect(keys[0].tokenLimit).toBe(100);
+    expect(keys[0].usedTokens).toBe(25);
+    expect(keys[0].allowedModels).toBe("openai/gpt-5.6");
 
     const aliases = db.all(`SELECT * FROM kv WHERE scope='modelAliases'`);
     expect(aliases).toHaveLength(1);

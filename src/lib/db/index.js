@@ -86,6 +86,7 @@ export async function exportDb() {
       isActive: r.isActive === 1,
       tokenLimit: r.tokenLimit == null ? null : Number(r.tokenLimit),
       usedTokens: Number(r.usedTokens) || 0,
+      allowedModels: r.allowedModels || null,
       createdAt: r.createdAt,
     })),
     combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
@@ -147,7 +148,7 @@ export async function importDb(payload) {
     }
     for (const k of payload.apiKeys || []) {
       db.run(
-        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           k.id,
           k.key,
@@ -156,6 +157,7 @@ export async function importDb(payload) {
           k.isActive === false ? 0 : 1,
           k.tokenLimit ?? null,
           Number(k.usedTokens) || 0,
+          k.allowedModels || null,
           k.createdAt || new Date().toISOString(),
         ]
       );
