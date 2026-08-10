@@ -380,6 +380,42 @@ export async function getApiKeyAccess(apiKey, requestedModel = null) {
     };
   }
 
+  if (
+    keyInfo.dailyTokenLimit != null
+    && keyInfo.dailyUsedTokens >= keyInfo.dailyTokenLimit
+  ) {
+    log.warn(
+      "AUTH",
+      `Daily token limit exceeded for key (used: ${keyInfo.dailyUsedTokens}, limit: ${keyInfo.dailyTokenLimit}, resets: ${keyInfo.dailyResetAt})`
+    );
+    return {
+      valid: false,
+      status: HTTP_STATUS.RATE_LIMITED,
+      reason: "daily_token_limit_exceeded",
+      message: "Daily token limit exceeded",
+      resetAt: keyInfo.dailyResetAt,
+      keyInfo,
+    };
+  }
+
+  if (
+    keyInfo.hourlyTokenLimit != null
+    && keyInfo.hourlyUsedTokens >= keyInfo.hourlyTokenLimit
+  ) {
+    log.warn(
+      "AUTH",
+      `Hourly token limit exceeded for key (used: ${keyInfo.hourlyUsedTokens}, limit: ${keyInfo.hourlyTokenLimit}, resets: ${keyInfo.hourlyResetAt})`
+    );
+    return {
+      valid: false,
+      status: HTTP_STATUS.RATE_LIMITED,
+      reason: "hourly_token_limit_exceeded",
+      message: "Hourly token limit exceeded",
+      resetAt: keyInfo.hourlyResetAt,
+      keyInfo,
+    };
+  }
+
   if (requestedModel && keyInfo.allowedModels) {
     const models = keyInfo.allowedModels.split(",").map(m => m.trim()).filter(Boolean);
     if (models.length > 0 && !models.includes(requestedModel)) {

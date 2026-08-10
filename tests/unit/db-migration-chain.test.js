@@ -64,6 +64,10 @@ describe("Schema migrations", () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const db = await getAdapter();
 
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN hourlyResetMinute`);
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN hourlyTokenLimit`);
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN dailyResetTime`);
+    db.exec(`ALTER TABLE apiKeys DROP COLUMN dailyTokenLimit`);
     db.exec(`ALTER TABLE apiKeys DROP COLUMN allowedModels`);
     db.exec(`ALTER TABLE apiKeys DROP COLUMN usedTokens`);
     db.exec(`ALTER TABLE apiKeys DROP COLUMN tokenLimit`);
@@ -86,6 +90,10 @@ describe("Schema migrations", () => {
       tokenLimit: null,
       usedTokens: 0,
       allowedModels: null,
+      dailyTokenLimit: null,
+      dailyResetTime: "00:00",
+      hourlyTokenLimit: null,
+      hourlyResetMinute: 0,
     });
   });
 
@@ -93,8 +101,14 @@ describe("Schema migrations", () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const db = await getAdapter();
     db.run(
-      `INSERT INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ["duwn-key", "sk-duwn", "Duwn", "machine-1", 1, 500, 125, "openai/gpt-5.6", "2026-08-08T00:00:00.000Z"]
+      `INSERT INTO apiKeys(
+        id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels,
+        dailyTokenLimit, dailyResetTime, hourlyTokenLimit, hourlyResetMinute, createdAt
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        "duwn-key", "sk-duwn", "Duwn", "machine-1", 1, 500, 125, "openai/gpt-5.6",
+        100, "07:30", 25, 10, "2026-08-08T00:00:00.000Z",
+      ]
     );
     db.close?.();
 
@@ -107,6 +121,10 @@ describe("Schema migrations", () => {
         tokenLimit: 500,
         usedTokens: 125,
         allowedModels: "openai/gpt-5.6",
+        dailyTokenLimit: 100,
+        dailyResetTime: "07:30",
+        hourlyTokenLimit: 25,
+        hourlyResetMinute: 10,
       });
       reopened.close?.();
     }
@@ -123,6 +141,10 @@ describe("Schema migrations", () => {
         tokenLimit: 100,
         usedTokens: 25,
         allowedModels: "openai/gpt-5.6",
+        dailyTokenLimit: 100,
+        dailyResetTime: "07:30",
+        hourlyTokenLimit: 25,
+        hourlyResetMinute: 10,
         createdAt: new Date().toISOString(),
       }],
       modelAliases: { "gpt-4": "gpt-4-turbo" },
@@ -141,6 +163,10 @@ describe("Schema migrations", () => {
     expect(keys[0].tokenLimit).toBe(100);
     expect(keys[0].usedTokens).toBe(25);
     expect(keys[0].allowedModels).toBe("openai/gpt-5.6");
+    expect(keys[0].dailyTokenLimit).toBe(100);
+    expect(keys[0].dailyResetTime).toBe("07:30");
+    expect(keys[0].hourlyTokenLimit).toBe(25);
+    expect(keys[0].hourlyResetMinute).toBe(10);
 
     const aliases = db.all(`SELECT * FROM kv WHERE scope='modelAliases'`);
     expect(aliases).toHaveLength(1);

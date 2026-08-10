@@ -19,6 +19,13 @@ import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
 
 const TOKEN_NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
+const VIETNAM_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 function parseTokenLimitInput(value) {
   if (value.trim() === "") return { value: null, error: null };
@@ -33,15 +40,38 @@ function formatTokenCount(value) {
   return TOKEN_NUMBER_FORMATTER.format(Number(value) || 0);
 }
 
+function formatVietnamReset(value) {
+  return value ? VIETNAM_DATE_TIME_FORMATTER.format(new Date(value)) : "";
+}
+
+function validateQuotaSchedule(dailyResetTime, hourlyResetMinute) {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dailyResetTime)) {
+    return "Choose a valid daily reset time.";
+  }
+  const minute = Number(hourlyResetMinute);
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return "Hourly reset minute must be from 0 to 59.";
+  }
+  return null;
+}
+
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyTokenLimit, setNewKeyTokenLimit] = useState("");
+  const [newDailyTokenLimit, setNewDailyTokenLimit] = useState("");
+  const [newDailyResetTime, setNewDailyResetTime] = useState("00:00");
+  const [newHourlyTokenLimit, setNewHourlyTokenLimit] = useState("");
+  const [newHourlyResetMinute, setNewHourlyResetMinute] = useState("0");
   const [newKeyLimitError, setNewKeyLimitError] = useState("");
   const [editingKey, setEditingKey] = useState(null);
   const [editTokenLimit, setEditTokenLimit] = useState("");
+  const [editDailyTokenLimit, setEditDailyTokenLimit] = useState("");
+  const [editDailyResetTime, setEditDailyResetTime] = useState("00:00");
+  const [editHourlyTokenLimit, setEditHourlyTokenLimit] = useState("");
+  const [editHourlyResetMinute, setEditHourlyResetMinute] = useState("0");
   const [editAllowedModels, setEditAllowedModels] = useState("");
   const [editKeyLimitError, setEditKeyLimitError] = useState("");
   const [newKeyAllowedModels, setNewKeyAllowedModels] = useState("");
@@ -648,8 +678,14 @@ export default function APIPageClient({ machineId }) {
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;
     const parsedLimit = parseTokenLimitInput(newKeyTokenLimit);
-    if (parsedLimit.error) {
-      setNewKeyLimitError(parsedLimit.error);
+    const parsedDailyLimit = parseTokenLimitInput(newDailyTokenLimit);
+    const parsedHourlyLimit = parseTokenLimitInput(newHourlyTokenLimit);
+    const validationError = parsedLimit.error
+      || parsedDailyLimit.error
+      || parsedHourlyLimit.error
+      || validateQuotaSchedule(newDailyResetTime, newHourlyResetMinute);
+    if (validationError) {
+      setNewKeyLimitError(validationError);
       return;
     }
 
@@ -660,6 +696,10 @@ export default function APIPageClient({ machineId }) {
         body: JSON.stringify({
           name: newKeyName,
           tokenLimit: parsedLimit.value,
+          dailyTokenLimit: parsedDailyLimit.value,
+          dailyResetTime: newDailyResetTime,
+          hourlyTokenLimit: parsedHourlyLimit.value,
+          hourlyResetMinute: Number(newHourlyResetMinute),
           allowedModels: newKeyAllowedModels || null,
         }),
       });
@@ -670,6 +710,10 @@ export default function APIPageClient({ machineId }) {
         await fetchData();
         setNewKeyName("");
         setNewKeyTokenLimit("");
+        setNewDailyTokenLimit("");
+        setNewDailyResetTime("00:00");
+        setNewHourlyTokenLimit("");
+        setNewHourlyResetMinute("0");
         setNewKeyAllowedModels("");
         setNewKeyLimitError("");
         setShowAddModal(false);
@@ -723,6 +767,10 @@ export default function APIPageClient({ machineId }) {
   const openTokenLimitEditor = (key) => {
     setEditingKey(key);
     setEditTokenLimit(key.tokenLimit == null ? "" : String(key.tokenLimit));
+    setEditDailyTokenLimit(key.dailyTokenLimit == null ? "" : String(key.dailyTokenLimit));
+    setEditDailyResetTime(key.dailyResetTime || "00:00");
+    setEditHourlyTokenLimit(key.hourlyTokenLimit == null ? "" : String(key.hourlyTokenLimit));
+    setEditHourlyResetMinute(String(key.hourlyResetMinute ?? 0));
     setEditAllowedModels(key.allowedModels || "");
     setEditKeyLimitError("");
   };
@@ -730,8 +778,14 @@ export default function APIPageClient({ machineId }) {
   const handleUpdateTokenLimit = async () => {
     if (!editingKey) return;
     const parsedLimit = parseTokenLimitInput(editTokenLimit);
-    if (parsedLimit.error) {
-      setEditKeyLimitError(parsedLimit.error);
+    const parsedDailyLimit = parseTokenLimitInput(editDailyTokenLimit);
+    const parsedHourlyLimit = parseTokenLimitInput(editHourlyTokenLimit);
+    const validationError = parsedLimit.error
+      || parsedDailyLimit.error
+      || parsedHourlyLimit.error
+      || validateQuotaSchedule(editDailyResetTime, editHourlyResetMinute);
+    if (validationError) {
+      setEditKeyLimitError(validationError);
       return;
     }
 
@@ -739,7 +793,14 @@ export default function APIPageClient({ machineId }) {
       const res = await fetch(`/api/keys/${editingKey.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenLimit: parsedLimit.value, allowedModels: editAllowedModels || null }),
+        body: JSON.stringify({
+          tokenLimit: parsedLimit.value,
+          dailyTokenLimit: parsedDailyLimit.value,
+          dailyResetTime: editDailyResetTime,
+          hourlyTokenLimit: parsedHourlyLimit.value,
+          hourlyResetMinute: Number(editHourlyResetMinute),
+          allowedModels: editAllowedModels || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -752,6 +813,10 @@ export default function APIPageClient({ machineId }) {
       )));
       setEditingKey(null);
       setEditTokenLimit("");
+      setEditDailyTokenLimit("");
+      setEditDailyResetTime("00:00");
+      setEditHourlyTokenLimit("");
+      setEditHourlyResetMinute("0");
       setEditAllowedModels("");
       setEditKeyLimitError("");
     } catch (error) {
@@ -1093,6 +1158,40 @@ export default function APIPageClient({ machineId }) {
               const usagePercent = hasTokenLimit
                 ? (tokenLimit === 0 ? 100 : Math.min((usedTokens / tokenLimit) * 100, 100))
                 : 0;
+              const quotaRows = [
+                {
+                  label: "Total",
+                  used: usedTokens,
+                  limit: tokenLimit,
+                  reached: limitReached,
+                  percent: usagePercent,
+                  resetAt: null,
+                },
+              ];
+              if (key.dailyTokenLimit != null) {
+                const dailyLimit = Number(key.dailyTokenLimit);
+                const dailyUsed = Number(key.dailyUsedTokens) || 0;
+                quotaRows.push({
+                  label: "Daily",
+                  used: dailyUsed,
+                  limit: dailyLimit,
+                  reached: dailyUsed >= dailyLimit,
+                  percent: dailyLimit === 0 ? 100 : Math.min((dailyUsed / dailyLimit) * 100, 100),
+                  resetAt: key.dailyResetAt,
+                });
+              }
+              if (key.hourlyTokenLimit != null) {
+                const hourlyLimit = Number(key.hourlyTokenLimit);
+                const hourlyUsed = Number(key.hourlyUsedTokens) || 0;
+                quotaRows.push({
+                  label: "Hourly",
+                  used: hourlyUsed,
+                  limit: hourlyLimit,
+                  reached: hourlyUsed >= hourlyLimit,
+                  percent: hourlyLimit === 0 ? 100 : Math.min((hourlyUsed / hourlyLimit) * 100, 100),
+                  resetAt: key.hourlyResetAt,
+                });
+              }
 
               return (
                 <div
@@ -1125,22 +1224,33 @@ export default function APIPageClient({ machineId }) {
                       </button>
                     </div>
 
-                    <div className="mt-2 max-w-md">
-                      <div className="flex items-center justify-between gap-3 text-xs">
-                        <span className={limitReached ? "font-medium text-red-500" : "text-text-muted"}>
-                          {formatTokenCount(usedTokens)} used
-                          {hasTokenLimit ? ` / ${formatTokenCount(tokenLimit)} tokens` : " - Unlimited"}
-                        </span>
-                        {limitReached && <span className="font-medium text-red-500">Limit reached</span>}
-                      </div>
-                      {hasTokenLimit && (
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
-                          <div
-                            className={`h-full rounded-full transition-all ${limitReached ? "bg-red-500" : "bg-primary"}`}
-                            style={{ width: `${usagePercent}%` }}
-                          />
+                    <div className="mt-2 max-w-md space-y-2">
+                      {quotaRows.map((quota) => (
+                        <div key={quota.label}>
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className={quota.reached ? "font-medium text-red-500" : "text-text-muted"}>
+                              {quota.label}: {formatTokenCount(quota.used)} used
+                              {quota.limit == null ? " - Unlimited" : ` / ${formatTokenCount(quota.limit)} tokens`}
+                            </span>
+                            {quota.reached && <span className="font-medium text-red-500">Limit reached</span>}
+                          </div>
+                          {quota.limit != null && (
+                            <>
+                              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-3">
+                                <div
+                                  className={`h-full rounded-full transition-all ${quota.reached ? "bg-red-500" : "bg-primary"}`}
+                                  style={{ width: `${quota.percent}%` }}
+                                />
+                              </div>
+                              {quota.resetAt && (
+                                <p className="mt-1 text-[11px] text-text-muted">
+                                  Resets {formatVietnamReset(quota.resetAt)} (Vietnam time)
+                                </p>
+                              )}
+                            </>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
 
                     <p className="text-xs text-text-muted mt-1.5">
@@ -1200,6 +1310,10 @@ export default function APIPageClient({ machineId }) {
           setShowAddModal(false);
           setNewKeyName("");
           setNewKeyTokenLimit("");
+          setNewDailyTokenLimit("");
+          setNewDailyResetTime("00:00");
+          setNewHourlyTokenLimit("");
+          setNewHourlyResetMinute("0");
           setNewKeyAllowedModels("");
           setNewKeyLimitError("");
         }}
@@ -1225,6 +1339,59 @@ export default function APIPageClient({ machineId }) {
             hint="Maximum total tokens this key can use. Leave blank for unlimited."
             error={newKeyLimitError}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Daily Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={newDailyTokenLimit}
+              onChange={(e) => {
+                setNewDailyTokenLimit(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Leave blank for unlimited."
+            />
+            <Input
+              label="Daily Reset Time (Vietnam)"
+              type="time"
+              value={newDailyResetTime}
+              onChange={(e) => {
+                setNewDailyResetTime(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              hint="Resets every day at this UTC+7 time."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Hourly Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={newHourlyTokenLimit}
+              onChange={(e) => {
+                setNewHourlyTokenLimit(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Leave blank for unlimited."
+            />
+            <Input
+              label="Hourly Reset Minute (Vietnam)"
+              type="number"
+              min="0"
+              max="59"
+              step="1"
+              value={newHourlyResetMinute}
+              onChange={(e) => {
+                setNewHourlyResetMinute(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              hint="For example, 15 resets at xx:15 each hour."
+            />
+          </div>
           <Input
             label="Allowed Models (optional, comma-separated)"
             value={newKeyAllowedModels}
@@ -1241,6 +1408,10 @@ export default function APIPageClient({ machineId }) {
                 setShowAddModal(false);
                 setNewKeyName("");
                 setNewKeyTokenLimit("");
+                setNewDailyTokenLimit("");
+                setNewDailyResetTime("00:00");
+                setNewHourlyTokenLimit("");
+                setNewHourlyResetMinute("0");
                 setNewKeyLimitError("");
               }}
               variant="ghost"
@@ -1259,6 +1430,10 @@ export default function APIPageClient({ machineId }) {
         onClose={() => {
           setEditingKey(null);
           setEditTokenLimit("");
+          setEditDailyTokenLimit("");
+          setEditDailyResetTime("00:00");
+          setEditHourlyTokenLimit("");
+          setEditHourlyResetMinute("0");
           setEditAllowedModels("");
           setEditKeyLimitError("");
         }}
@@ -1283,6 +1458,59 @@ export default function APIPageClient({ machineId }) {
             hint="Leave blank to remove the limit."
             error={editKeyLimitError}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Daily Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={editDailyTokenLimit}
+              onChange={(e) => {
+                setEditDailyTokenLimit(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Usage resets on the Vietnam schedule."
+            />
+            <Input
+              label="Daily Reset Time (Vietnam)"
+              type="time"
+              value={editDailyResetTime}
+              onChange={(e) => {
+                setEditDailyResetTime(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              hint="UTC+7, independent of server time."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Hourly Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={editHourlyTokenLimit}
+              onChange={(e) => {
+                setEditHourlyTokenLimit(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Usage resets every hour."
+            />
+            <Input
+              label="Hourly Reset Minute (Vietnam)"
+              type="number"
+              min="0"
+              max="59"
+              step="1"
+              value={editHourlyResetMinute}
+              onChange={(e) => {
+                setEditHourlyResetMinute(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              hint="For example, 15 resets at xx:15 each hour."
+            />
+          </div>
           <Input
             label="Allowed Models (optional, comma-separated)"
             value={editAllowedModels}
@@ -1298,6 +1526,10 @@ export default function APIPageClient({ machineId }) {
               onClick={() => {
                 setEditingKey(null);
                 setEditTokenLimit("");
+                setEditDailyTokenLimit("");
+                setEditDailyResetTime("00:00");
+                setEditHourlyTokenLimit("");
+                setEditHourlyResetMinute("0");
                 setEditKeyLimitError("");
               }}
               variant="ghost"

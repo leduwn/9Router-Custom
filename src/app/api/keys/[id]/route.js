@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteApiKey, getApiKeyById, updateApiKey } from "@/lib/localDb";
 import { parseTokenLimit } from "@/lib/apiKeyLimits";
+import { parseDailyResetTime, parseHourlyResetMinute } from "@/lib/apiKeyTimeLimits";
 
 // GET /api/keys/[id] - Get single key
 export async function GET(request, { params }) {
@@ -37,6 +38,22 @@ export async function PUT(request, { params }) {
       } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
+    }
+    try {
+      if (Object.hasOwn(body, "dailyTokenLimit")) {
+        updateData.dailyTokenLimit = parseTokenLimit(body.dailyTokenLimit);
+      }
+      if (Object.hasOwn(body, "dailyResetTime")) {
+        updateData.dailyResetTime = parseDailyResetTime(body.dailyResetTime);
+      }
+      if (Object.hasOwn(body, "hourlyTokenLimit")) {
+        updateData.hourlyTokenLimit = parseTokenLimit(body.hourlyTokenLimit);
+      }
+      if (Object.hasOwn(body, "hourlyResetMinute")) {
+        updateData.hourlyResetMinute = parseHourlyResetMinute(body.hourlyResetMinute);
+      }
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (Object.hasOwn(body, "allowedModels")) {
       updateData.allowedModels = body.allowedModels || null;
