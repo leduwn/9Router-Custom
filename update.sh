@@ -81,13 +81,8 @@ headroom_working_dir="$(container_label "$HEADROOM_CONTAINER" com.docker.compose
 [[ "$headroom_project" == "$router_project" && "$headroom_service" == "headroom" && "$headroom_working_dir" == "$repo_dir" ]] || \
   die "Container $HEADROOM_CONTAINER is not managed by this Compose project; complete the one-time migration first"
 
-shared_network="$(
-  comm -12 \
-    <(docker inspect "$ROUTER_CONTAINER" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' | sort) \
-    <(docker inspect "$HEADROOM_CONTAINER" --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' | sort) \
-    | head -n 1
-)"
-[[ -n "$shared_network" ]] || die "$ROUTER_CONTAINER and $HEADROOM_CONTAINER do not share a Docker network"
+docker exec "$ROUTER_CONTAINER" getent hosts "$HEADROOM_CONTAINER" >/dev/null 2>&1 || \
+  die "$ROUTER_CONTAINER cannot resolve $HEADROOM_CONTAINER on its Docker network"
 
 integrity="$(sqlite3 -readonly "$db_file" 'PRAGMA integrity_check;')"
 [[ "$integrity" == "ok" ]] || die "Source database integrity check failed: $integrity"
