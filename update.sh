@@ -199,7 +199,7 @@ log "Building custom image from local source"
 docker compose build --pull 9router
 
 log "Recreating only the Compose-managed 9router service"
-docker compose up -d --no-deps --force-recreate 9router
+docker compose up -d --no-deps --force-recreate --no-build 9router
 
 post_mount="$(container_mount "$ROUTER_CONTAINER")"
 [[ "$post_mount" == "bind|$EXPECTED_DATA_DIR|true" ]] || \
