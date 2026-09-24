@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import Badge from "@/shared/components/Badge";
-import Button from "@/shared/components/Button";
-import Card from "@/shared/components/Card";
-import { CardSkeleton } from "@/shared/components/Loading";
-import Input from "@/shared/components/Input";
-import Modal, { ConfirmModal } from "@/shared/components/Modal";
-import Toggle from "@/shared/components/Toggle";
+import { Badge, Button, Card, CardSkeleton, Input, Modal, Toggle, ConfirmModal } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
 
 function getStatusVariant(status) {
@@ -58,7 +52,7 @@ export default function ProxyPoolsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
   const relayMenuRef = useRef(null);
-  const notify = useNotificationStore.getState();
+  const notify = useNotificationStore();
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -77,11 +71,7 @@ export default function ProxyPoolsPage() {
       const res = await fetch("/api/proxy-pools?includeUsage=true", { cache: "no-store" });
       const data = await res.json();
       if (res.ok) {
-        const nextPools = data.proxyPools || [];
-        setProxyPools(nextPools);
-        setSelectedIds((prev) =>
-          prev.filter((id) => nextPools.some((pool) => pool.id === id)),
-        );
+        setProxyPools(data.proxyPools || []);
       }
     } catch (error) {
       console.log("Error fetching proxy pools:", error);
@@ -91,8 +81,7 @@ export default function ProxyPoolsPage() {
   }, []);
 
   useEffect(() => {
-    const initial = globalThis.setTimeout(fetchProxyPools, 0);
-    return () => globalThis.clearTimeout(initial);
+    fetchProxyPools();
   }, [fetchProxyPools]);
 
   const resetForm = () => {
@@ -337,6 +326,11 @@ export default function ProxyPoolsPage() {
       notify.success(`Health check done. Alive: ${alive}, Dead: ${deadIds.length}`);
     }
   };
+
+  // Cleanup selectedIds when pools change
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => proxyPools.some((p) => p.id === id)));
+  }, [proxyPools]);
 
   const openBatchImportModal = () => {
     setBatchImportText("");
@@ -901,7 +895,7 @@ export default function ProxyPoolsPage() {
             value={cloudflareForm.apiToken}
             onChange={(e) => setCloudflareForm((prev) => ({ ...prev, apiToken: e.target.value }))}
             placeholder="your-cloudflare-api-token"
-            hint={<>Requires &quot;Workers Scripts: Edit&quot; permission. <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get token →</a></>}
+            hint={<>Requires "Workers Scripts: Edit" permission. <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get token →</a></>}
             type="password"
           />
           <Input

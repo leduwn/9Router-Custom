@@ -186,7 +186,7 @@ async function waitForAppAndOpenBrowser() {
   while (Date.now() < deadline) {
     const busy = await isAppPortBusy();
     if (busy) {
-      openBrowser(`http://localhost:${appPort}/dashboard/endpoint`);
+      openBrowser(`http://localhost:${appPort}/dashboard`);
       pushLog(`[updater] app ready, opened dashboard`);
       return;
     }

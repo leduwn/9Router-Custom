@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteApiKey, getApiKeyById, updateApiKey } from "@/lib/localDb";
 import { parseTokenLimit } from "@/lib/apiKeyLimits";
+import { parseDailyResetTime, parseHourlyResetMinute } from "@/lib/apiKeyTimeLimits";
 
 // GET /api/keys/[id] - Get single key
 export async function GET(request, { params }) {
@@ -38,13 +39,25 @@ export async function PUT(request, { params }) {
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
     }
-    if (Object.hasOwn(body, "allowedModels")) {
-      if (!Array.isArray(body.allowedModels)) {
-        return NextResponse.json({ error: "Allowed models must be a list" }, { status: 400 });
+    try {
+      if (Object.hasOwn(body, "dailyTokenLimit")) {
+        updateData.dailyTokenLimit = parseTokenLimit(body.dailyTokenLimit);
       }
-      updateData.allowedModels = body.allowedModels;
+      if (Object.hasOwn(body, "dailyResetTime")) {
+        updateData.dailyResetTime = parseDailyResetTime(body.dailyResetTime);
+      }
+      if (Object.hasOwn(body, "hourlyTokenLimit")) {
+        updateData.hourlyTokenLimit = parseTokenLimit(body.hourlyTokenLimit);
+      }
+      if (Object.hasOwn(body, "hourlyResetMinute")) {
+        updateData.hourlyResetMinute = parseHourlyResetMinute(body.hourlyResetMinute);
+      }
+    } catch (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    if (body.resetUsedTokens === true) updateData.usedTokens = 0;
+    if (Object.hasOwn(body, "allowedModels")) {
+      updateData.allowedModels = body.allowedModels || null;
+    }
 
     const updated = await updateApiKey(id, updateData);
 

@@ -1,116 +1,166 @@
 "use client";
-
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import BrandMark from "@/shared/components/BrandMark";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 
-const TOOLS = [
+const CLI_TOOLS = [
   { id: "claude", name: "Claude Code", image: "/providers/claude.png" },
-  { id: "codex", name: "Codex", image: "/providers/codex.png" },
+  { id: "codex", name: "OpenAI Codex", image: "/providers/codex.png" },
+  { id: "cline", name: "Cline", image: "/providers/cline.png" },
   { id: "cursor", name: "Cursor", image: "/providers/cursor.png" },
 ];
 
 const PROVIDERS = [
-  { id: "openai", name: "OpenAI", image: "/providers/openai.png" },
-  { id: "anthropic", name: "Anthropic", image: "/providers/claude.png" },
-  { id: "gemini", name: "Gemini", image: "/providers/gemini.png" },
+  {
+    id: "openai",
+    name: "OpenAI",
+  },
+  {
+    id: "anthropic",
+    name: "Anthropic",
+  },
+  {
+    id: "gemini",
+    name: "Gemini",
+  },
+  {
+    id: "github",
+    name: "GitHub Copilot",
+  },
 ];
-
-function EndpointItem({ item, active = false }) {
-  return (
-    <div className={`flex items-center gap-3 rounded-2xl border px-3.5 py-3 transition-all duration-500 ${
-      active
-        ? "border-cyan-300/25 bg-cyan-300/[0.075] shadow-[0_12px_32px_-22px_rgba(34,211,238,0.8)]"
-        : "border-white/[0.07] bg-white/[0.03]"
-    }`}>
-      <span className="flex size-9 items-center justify-center rounded-xl bg-white/[0.055]">
-        <ProviderIcon
-          src={item.image}
-          alt={item.name}
-          size={25}
-          className="max-h-[25px] max-w-[25px] rounded object-contain"
-          fallbackText={item.name.slice(0, 2).toUpperCase()}
-        />
-      </span>
-      <span className="text-xs font-semibold text-slate-300">{item.name}</span>
-      {active ? <span className="ml-auto size-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(34,211,238,0.9)]" /> : null}
-    </div>
-  );
-}
 
 export default function FlowAnimation() {
   const [activeFlow, setActiveFlow] = useState(0);
-  const sectionRef = useRef(null);
 
   useEffect(() => {
-    const section = sectionRef.current;
-    if (!section || globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return undefined;
-    }
-
-    let visible = false;
-    let interval = null;
-    const stop = () => {
-      if (interval) globalThis.clearInterval(interval);
-      interval = null;
-    };
-    const start = () => {
-      if (!visible || document.hidden || interval) return;
-      interval = globalThis.setInterval(() => {
-        setActiveFlow((current) => (current + 1) % PROVIDERS.length);
-      }, 2200);
-    };
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        visible = entry.isIntersecting;
-        if (visible) start();
-        else stop();
-      },
-      { rootMargin: "120px" },
-    );
-    const onVisibilityChange = () => {
-      if (document.hidden) stop();
-      else start();
-    };
-
-    observer.observe(section);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      stop();
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    const interval = setInterval(() => {
+      setActiveFlow((prev) => (prev + 1) % PROVIDERS.length);
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative w-full overflow-hidden rounded-[26px] border border-white/[0.075] bg-white/[0.028] p-5 shadow-[0_32px_80px_-52px_rgba(33,136,255,0.7)] sm:p-8" aria-label="Routing flow">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(33,136,255,0.1),transparent_45%)]" />
-
-      <div className="relative grid items-center gap-5 md:grid-cols-[1fr_auto_1fr] md:gap-10">
-        <div className="grid gap-2.5">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">Your tools</p>
-          {TOOLS.map((tool) => <EndpointItem key={tool.id} item={tool} />)}
-        </div>
-
-        <div className="relative mx-auto flex size-36 flex-col items-center justify-center rounded-[34px] border border-cyan-300/20 bg-[#091a2d]/92 shadow-[0_0_50px_-18px_rgba(34,211,238,0.72)]">
-          <div className="absolute inset-3 rounded-[26px] border border-white/[0.06]" />
-          <BrandMark size="xl" />
-          <p className="mt-3 text-sm font-bold tracking-[-0.02em] text-white">Duwn</p>
-          <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-300/65">Route · observe</p>
-        </div>
-
-        <div className="grid gap-2.5">
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 md:text-right">Providers</p>
-          {PROVIDERS.map((provider, index) => (
-            <EndpointItem key={provider.id} item={provider} active={activeFlow === index} />
-          ))}
-        </div>
+    <div className="mt-16 w-full max-w-4xl relative h-[360px] hidden md:flex items-center justify-center animate-[float_6s_ease-in-out_infinite]">
+      {/* Duwn Hub - Center */}
+      <div className="relative z-20 w-32 h-32 rounded-full bg-[#0f1d30] border-2 border-[#2188ff] shadow-[0_0_40px_rgba(33,136,255,0.3)] flex flex-col items-center justify-center gap-2 group cursor-pointer hover:scale-105 transition-transform duration-500">
+        <BrandMark size="lg" />
+        <span className="text-xs font-bold text-white tracking-widest uppercase">
+          Duwn
+        </span>
+        <div className="absolute inset-0 rounded-full border border-[#2188ff]/30 animate-ping opacity-20"></div>
       </div>
 
-      <div className="relative mt-6 flex items-center justify-center gap-2 border-t border-white/[0.06] pt-5 text-xs text-slate-500">
-        <span className="material-symbols-outlined text-[16px] text-cyan-300/70">conversion_path</span>
-        The 9router runtime handles protocol translation and streaming underneath.
+      {/* CLI Tools - Left side */}
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 flex flex-col gap-7">
+        {CLI_TOOLS.map((tool) => (
+          <div
+            key={tool.id}
+            className="flex items-center gap-3 opacity-70 hover:opacity-100 transition-opacity group"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-[#0f1d30] border border-[#20364f] flex items-center justify-center overflow-hidden p-2 hover:border-[#2188ff]/50 transition-all hover:scale-105">
+              <ProviderIcon
+                src={tool.image}
+                alt={tool.name}
+                size={48}
+                className="object-contain rounded-xl max-w-[48px] max-h-[48px]"
+                fallbackText={tool.name.slice(0, 2).toUpperCase()}
+              />
+            </div>
+          </div>
+        ))}
       </div>
-    </section>
+
+      {/* SVG Lines from CLI to 9Router */}
+      <svg
+        className="absolute inset-0 w-full h-full z-10 pointer-events-none stroke-[#2188ff]"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          className="animate-[dash_2s_linear_infinite]"
+          d="M 60 50 C 250 70, 250 180, 360 180"
+          fill="none"
+          strokeDasharray="5,5"
+          strokeWidth="2"
+        ></path>
+        <path
+          className="animate-[dash_2s_linear_infinite]"
+          d="M 60 140 C 250 140, 250 180, 360 180"
+          fill="none"
+          strokeDasharray="5,5"
+          strokeWidth="2"
+        ></path>
+        <path
+          className="animate-[dash_2s_linear_infinite]"
+          d="M 60 210 C 250 210, 250 180, 360 180"
+          fill="none"
+          strokeDasharray="5,5"
+          strokeWidth="2"
+        ></path>
+        <path
+          className="animate-[dash_2s_linear_infinite]"
+          d="M 60 300 C 250 280, 250 180, 360 180"
+          fill="none"
+          strokeDasharray="5,5"
+          strokeWidth="2"
+        ></path>
+      </svg>
+
+      {/* SVG Lines from 9Router to Providers */}
+      <svg
+        className="absolute inset-0 w-full h-full z-10 pointer-events-none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M 440 180 C 550 180, 550 50, 740 50"
+          fill="none"
+          stroke={activeFlow === 0 ? "#2188ff" : "rgb(75, 85, 99)"}
+          strokeWidth={activeFlow === 0 ? "3" : "2"}
+          className={activeFlow === 0 ? "animate-pulse" : ""}
+        ></path>
+        <path
+          d="M 440 180 C 550 180, 550 130, 740 130"
+          fill="none"
+          stroke={activeFlow === 1 ? "#2188ff" : "rgb(75, 85, 99)"}
+          strokeWidth={activeFlow === 1 ? "3" : "2"}
+          className={activeFlow === 1 ? "animate-pulse" : ""}
+        ></path>
+        <path
+          d="M 440 180 C 550 180, 550 230, 740 230"
+          fill="none"
+          stroke={activeFlow === 2 ? "#2188ff" : "rgb(75, 85, 99)"}
+          strokeWidth={activeFlow === 2 ? "3" : "2"}
+          className={activeFlow === 2 ? "animate-pulse" : ""}
+        ></path>
+        <path
+          d="M 440 180 C 550 180, 550 310, 740 310"
+          fill="none"
+          stroke={activeFlow === 3 ? "#2188ff" : "rgb(75, 85, 99)"}
+          strokeWidth={activeFlow === 3 ? "3" : "2"}
+          className={activeFlow === 3 ? "animate-pulse" : ""}
+        ></path>
+      </svg>
+
+      {/* AI Providers - Right side */}
+      <div className="absolute right-0 top-0 bottom-0 flex flex-col justify-between py-6">
+        {PROVIDERS.map((provider, idx) => (
+          <div
+            key={provider.id}
+            className={`px-4 py-2 rounded-lg border border-[#2188ff]/40 bg-[#2188ff]/15 text-[#2188ff] flex items-center justify-center font-bold text-xs shadow-lg hover:scale-110 transition-all cursor-help min-w-[140px] ${
+              activeFlow === idx ? "ring-4 ring-[#2188ff]/50 scale-110" : ""
+            }`}
+            title={provider.name}
+          >
+            {provider.name}
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile fallback */}
+      <div className="md:hidden mt-8 w-full p-4 rounded-lg bg-[#0f1d30] border border-[#20364f]">
+        <p className="text-sm text-center text-gray-400">
+          Interactive diagram visible on desktop
+        </p>
+      </div>
+    </div>
   );
 }

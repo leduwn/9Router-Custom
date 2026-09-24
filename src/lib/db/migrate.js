@@ -142,7 +142,10 @@ function importLegacyMain(adapter, data) {
 
   importWithAssertion(adapter, "apiKeys", data.apiKeys || [], (k) => {
     adapter.run(
-      `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO apiKeys(
+        id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels,
+        dailyTokenLimit, dailyResetTime, hourlyTokenLimit, hourlyResetMinute, createdAt
+      ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         k.id,
         k.key,
@@ -151,6 +154,11 @@ function importLegacyMain(adapter, data) {
         k.isActive === false ? 0 : 1,
         k.tokenLimit ?? null,
         Number(k.usedTokens) || 0,
+        k.allowedModels || null,
+        k.dailyTokenLimit ?? null,
+        k.dailyResetTime || "00:00",
+        k.hourlyTokenLimit ?? null,
+        k.hourlyResetMinute ?? 0,
         k.createdAt || new Date().toISOString(),
       ]
     );

@@ -4,10 +4,20 @@ import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLock
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
+import { getAntigravityQuotaCache } from "./antigravityQuota.js";
 import * as log from "../utils/logger.js";
 
 // Mutex to prevent race conditions during account selection
 let selectionMutex = Promise.resolve();
+
+const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
+
+function githubMonthlyResetMs(status, errorText, provider) {
+  if (resolveProviderId(provider) !== "github" || Number(status) !== 402) return null;
+  if (!String(errorText || "").toLowerCase().includes(GITHUB_MONTHLY_USAGE_LIMIT)) return null;
+  const now = new Date();
+  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+}
 
 /**
  * Get provider credentials from localDb
@@ -68,10 +78,23 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       return null;
     }
 
-    // Filter out model-locked and excluded connections
+    // Antigravity quota cache is lazy: only populated after that account returns 409/429.
+    const isAntigravity = providerId === "antigravity";
+    const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
+
+    // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
     const availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (isModelLockActive(c, model)) return false;
+      // Antigravity: skip if live quota exhausted for this model
+      if (isAntigravity && model && antigravityQuotaCache) {
+        const quota = antigravityQuotaCache.get(c.id)?.[model];
+        if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
+          const account = c.id?.slice(0, 8) || "unknown";
+          log.info("AG_QUOTA", `${account} | CACHE_BLOCK ${model} — skip upstream until ${quota.resetAt}`);
+          return false;
+        }
+      }
       return true;
     });
 
@@ -86,9 +109,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     });
 
     if (availableConnections.length === 0) {
-      // Find earliest lock expiry across all connections for retry timing
+      // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
       const lockedConns = connections.filter(c => isModelLockActive(c, model));
       const expiries = lockedConns.map(c => getEarliestModelLockUntil(c)).filter(Boolean);
+      if (isAntigravity && model && antigravityQuotaCache) {
+        connections.forEach((c) => {
+          const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
+          if (resetAt && new Date(resetAt).getTime() > Date.now()) expiries.push(resetAt);
+        });
+      }
       const earliest = expiries.sort()[0] || null;
       if (earliest) {
         const earliestConn = lockedConns[0];
@@ -214,19 +243,29 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   const conn = connections.find(c => c.id === connectionId);
   const backoffLevel = conn?.backoffLevel || 0;
 
+  // GitHub premium-request exhaustion is account-wide until the next UTC month.
+  const githubResetAtMs = githubMonthlyResetMs(status, errorText, provider);
+
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at) overrides backoff
   let shouldFallback, cooldownMs, newBackoffLevel;
-  if (resetsAtMs && resetsAtMs > Date.now()) {
+  if (githubResetAtMs) {
     shouldFallback = true;
-    cooldownMs = Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS);
+    cooldownMs = githubResetAtMs - Date.now();
+    newBackoffLevel = 0;
+  } else if (resetsAtMs && resetsAtMs > Date.now()) {
+    shouldFallback = true;
+    // Antigravity quota API provides exact per-model resetAt. Do not truncate it.
+    cooldownMs = resolveProviderId(provider) === "antigravity"
+      ? resetsAtMs - Date.now()
+      : Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS);
     newBackoffLevel = 0;
   } else {
     ({ shouldFallback, cooldownMs, newBackoffLevel } = checkFallbackError(status, errorText, backoffLevel));
   }
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
-  const reason = typeof errorText === "string" ? errorText.slice(0, 100) : "Provider error";
-  const lockUpdate = buildModelLockUpdate(model, cooldownMs);
+  const reason = typeof errorText === "string" ? errorText.slice(0, 200) : "Provider error";
+  const lockUpdate = buildModelLockUpdate(githubResetAtMs ? null : model, cooldownMs);
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
@@ -325,7 +364,7 @@ export async function isValidApiKey(apiKey) {
   return access.valid;
 }
 
-export async function getApiKeyAccess(apiKey, model = null) {
+export async function getApiKeyAccess(apiKey, requestedModel = null) {
   if (!apiKey) {
     return {
       valid: false,
@@ -365,22 +404,56 @@ export async function getApiKeyAccess(apiKey, model = null) {
   }
 
   if (
-    model
-    && Array.isArray(keyInfo.allowedModels)
-    && keyInfo.allowedModels.length > 0
-    && !keyInfo.allowedModels.some((allowedModel) => (
-      allowedModel === "*"
-      || model === allowedModel
-      || model.startsWith(`${allowedModel}/`)
-    ))
+    keyInfo.dailyTokenLimit != null
+    && keyInfo.dailyUsedTokens >= keyInfo.dailyTokenLimit
   ) {
+    log.warn(
+      "AUTH",
+      `Daily token limit exceeded for key (used: ${keyInfo.dailyUsedTokens}, limit: ${keyInfo.dailyTokenLimit}, resets: ${keyInfo.dailyResetAt})`
+    );
     return {
       valid: false,
-      status: HTTP_STATUS.FORBIDDEN,
-      reason: "model_not_allowed",
-      message: `Model "${model}" is not allowed for this API key`,
+      status: HTTP_STATUS.RATE_LIMITED,
+      reason: "daily_token_limit_exceeded",
+      message: "Daily token limit exceeded",
+      resetAt: keyInfo.dailyResetAt,
       keyInfo,
     };
+  }
+
+  if (
+    keyInfo.hourlyTokenLimit != null
+    && keyInfo.hourlyUsedTokens >= keyInfo.hourlyTokenLimit
+  ) {
+    log.warn(
+      "AUTH",
+      `Hourly token limit exceeded for key (used: ${keyInfo.hourlyUsedTokens}, limit: ${keyInfo.hourlyTokenLimit}, resets: ${keyInfo.hourlyResetAt})`
+    );
+    return {
+      valid: false,
+      status: HTTP_STATUS.RATE_LIMITED,
+      reason: "hourly_token_limit_exceeded",
+      message: "Hourly token limit exceeded",
+      resetAt: keyInfo.hourlyResetAt,
+      keyInfo,
+    };
+  }
+
+  if (requestedModel && keyInfo.allowedModels) {
+    const models = keyInfo.allowedModels.split(",").map(m => m.trim()).filter(Boolean);
+    if (models.length > 0 && !models.includes(requestedModel)) {
+      log.warn(
+        "AUTH",
+        `Model ${requestedModel} not allowed for key (allowed: ${keyInfo.allowedModels})`
+      );
+      return {
+        valid: false,
+        status: HTTP_STATUS.FORBIDDEN,
+        reason: "model_not_allowed",
+        message: `Model ${requestedModel} is not allowed for this API key.`,
+        keyInfo,
+      };
+    }
   }
 
   return {

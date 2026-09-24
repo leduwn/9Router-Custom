@@ -122,7 +122,10 @@ describe("Gemini native v1beta endpoint", () => {
       params: Promise.resolve({ path: ["gemini-2.5-flash-preview-tts:generateContent"] }),
     });
 
-    expect(mocks.getApiKeyAccess).toHaveBeenCalledWith("client-router-key");
+    expect(mocks.getApiKeyAccess).toHaveBeenCalledWith(
+      "client-router-key",
+      "gemini/gemini-2.5-flash-preview-tts"
+    );
     expect(global.fetch.mock.calls[0][1].headers["x-goog-api-key"]).toBe("real-gemini-key");
     expect(global.fetch.mock.calls[0][1].headers["x-goog-api-key"]).not.toBe("client-router-key");
   });

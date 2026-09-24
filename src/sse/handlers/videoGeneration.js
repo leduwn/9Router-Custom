@@ -5,7 +5,7 @@ import {
   extractApiKey,
   getApiKeyAccess,
 } from "../services/auth.js";
-import { getSettings } from "@/lib/localDb";
+import { getSettings, getProviderConnectionById } from "@/lib/localDb";
 import { getModelInfo } from "../services/model.js";
 import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets } from "open-sse/handlers/videoCore.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
@@ -17,6 +17,21 @@ import * as log from "../utils/logger.js";
 // (bare model id, or multipart bodies we deliberately don't parse) land here.
 const DEFAULT_VIDEO_PROVIDER = "xai";
 
+/**
+ * Poll requests carry no model, so the provider comes from the pinned
+ * connection (`x-connection-id`, returned on create) or an explicit
+ * `?provider=` — falling back to the historical xAI default.
+ */
+async function resolveGetProvider(request, connectionId) {
+  if (connectionId) {
+    const conn = await getProviderConnectionById(connectionId).catch(() => null);
+    if (conn?.provider && getVideoConfig(conn.provider)) return conn.provider;
+  }
+  const queried = new URL(request.url).searchParams.get("provider");
+  if (queried && getVideoConfig(queried)) return queried;
+  return DEFAULT_VIDEO_PROVIDER;
+}
+
 // Creation POSTs are billable jobs — only rotate to another account for
 // errors that upstream rejects BEFORE creating a job (auth/quota). A 5xx may
 // have created the job, so it is returned to the caller instead of re-sent.
@@ -26,12 +41,12 @@ const CREATE_ROTATION_STATUSES = new Set([
   HTTP_STATUS.RATE_LIMITED,
 ]);
 
-async function requireValidApiKey(request, model = null) {
+async function requireValidApiKey(request) {
   const apiKey = extractApiKey(request);
   const settings = await getSettings();
   if (settings.requireApiKey) {
     if (!apiKey) return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
-    const access = await getApiKeyAccess(apiKey, model);
+    const access = await getApiKeyAccess(apiKey, modelStr);
     if (!access.valid) return errorResponse(access.status, access.message);
   }
   return null;
@@ -92,14 +107,15 @@ function withConnectionHeader(response, connectionId) {
  * POST /v1/videos/{generations|edits|extensions} — async job creation proxy.
  */
 export async function handleVideoCreate(request, action) {
+  const authError = await requireValidApiKey(request);
+  if (authError) return authError;
+
   const bodyInfo = await readForwardableBody(request);
   if (bodyInfo.error) return bodyInfo.error;
 
   const resolved = await resolveVideoProvider(bodyInfo.parsed);
   if (resolved.error) return resolved.error;
   const { provider, model } = resolved;
-  const authError = await requireValidApiKey(request, `${provider}/${model}`);
-  if (authError) return authError;
 
   // Strip the provider prefix (e.g. "xai/grok-imagine-video") before forwarding;
   // otherwise forward the original bytes untouched.
@@ -184,8 +200,8 @@ export async function handleVideoGet(request, requestId) {
 
   if (!requestId) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing video request id");
 
-  const provider = DEFAULT_VIDEO_PROVIDER;
   const preferredConnectionId = request.headers.get("x-connection-id") || null;
+  const provider = await resolveGetProvider(request, preferredConnectionId);
 
   const credentials = await getProviderCredentials(provider, null, null, { preferredConnectionId });
   if (!credentials || credentials.allRateLimited) {

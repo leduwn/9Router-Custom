@@ -3,7 +3,6 @@ import pkg from "../../../../package.json" with { type: "json" };
 
 const NPM_PACKAGE_NAME = "9router";
 const VERSION_CACHE_TTL_MS = 3600000; // cache npm latest lookup for 1h
-const UI_BUILD_ID = process.env.NEXT_PUBLIC_DUWN_UI_BUILD_ID || pkg.version;
 
 // Survive hot reload; one cache per process
 const versionCache = (global.__npmVersionCache ??= { value: null, fetchedAt: 0 });
@@ -53,34 +52,10 @@ async function getLatestVersionCached() {
   return latest;
 }
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store, no-cache, max-age=0, must-revalidate",
-  "CDN-Cache-Control": "no-store",
-};
-
-export async function GET(request) {
-  const currentVersion = pkg.version;
-  const requestUrl = new URL(request.url);
-  const currentOnly = requestUrl.searchParams.get("currentOnly") === "1";
-  if (currentOnly) {
-    const legacyUiVersion = requestUrl.searchParams.get("ui");
-    const clientBuildId = requestUrl.searchParams.get("build");
-    // Older Duwn shells only sent the semver. Return a distinct version string
-    // once so those clients reload even when both builds say v0.5.45.
-    const syncVersion = legacyUiVersion && !clientBuildId
-      ? `${currentVersion}-duwn.${UI_BUILD_ID}`
-      : currentVersion;
-    return Response.json(
-      { currentVersion: syncVersion, uiBuildId: UI_BUILD_ID },
-      { headers: NO_STORE_HEADERS },
-    );
-  }
-
+export async function GET() {
   const latestVersion = await getLatestVersionCached();
+  const currentVersion = pkg.version;
   const hasUpdate = latestVersion ? compareVersions(latestVersion, currentVersion) > 0 : false;
 
-  return Response.json(
-    { currentVersion, uiBuildId: UI_BUILD_ID, latestVersion, hasUpdate },
-    { headers: NO_STORE_HEADERS },
-  );
+  return Response.json({ currentVersion, latestVersion, hasUpdate });
 }

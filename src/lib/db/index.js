@@ -86,7 +86,11 @@ export async function exportDb() {
       isActive: r.isActive === 1,
       tokenLimit: r.tokenLimit == null ? null : Number(r.tokenLimit),
       usedTokens: Number(r.usedTokens) || 0,
-      allowedModels: parseJson(r.allowedModels, []),
+      allowedModels: r.allowedModels || null,
+      dailyTokenLimit: r.dailyTokenLimit == null ? null : Number(r.dailyTokenLimit),
+      dailyResetTime: r.dailyResetTime || "00:00",
+      hourlyTokenLimit: r.hourlyTokenLimit == null ? null : Number(r.hourlyTokenLimit),
+      hourlyResetMinute: r.hourlyResetMinute == null ? 0 : Number(r.hourlyResetMinute),
       createdAt: r.createdAt,
     })),
     combos: db.all(`SELECT * FROM combos`).map((r) => ({ id: r.id, name: r.name, kind: r.kind, models: parseJson(r.models, []), createdAt: r.createdAt, updatedAt: r.updatedAt })),
@@ -148,7 +152,10 @@ export async function importDb(payload) {
     }
     for (const k of payload.apiKeys || []) {
       db.run(
-        `INSERT OR REPLACE INTO apiKeys(id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO apiKeys(
+          id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels,
+          dailyTokenLimit, dailyResetTime, hourlyTokenLimit, hourlyResetMinute, createdAt
+        ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           k.id,
           k.key,
@@ -157,7 +164,11 @@ export async function importDb(payload) {
           k.isActive === false ? 0 : 1,
           k.tokenLimit ?? null,
           Number(k.usedTokens) || 0,
-          stringifyJson(k.allowedModels || []),
+          k.allowedModels || null,
+          k.dailyTokenLimit ?? null,
+          k.dailyResetTime || "00:00",
+          k.hourlyTokenLimit ?? null,
+          k.hourlyResetMinute ?? 0,
           k.createdAt || new Date().toISOString(),
         ]
       );

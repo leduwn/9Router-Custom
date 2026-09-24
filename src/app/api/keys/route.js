@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiKeys, createApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { parseTokenLimit } from "@/lib/apiKeyLimits";
+import { parseDailyResetTime, parseHourlyResetMinute } from "@/lib/apiKeyTimeLimits";
 
 export const dynamic = "force-dynamic";
 
@@ -27,15 +28,34 @@ export async function POST(request) {
     }
 
     let tokenLimit;
+    let dailyTokenLimit;
+    let dailyResetTime;
+    let hourlyTokenLimit;
+    let hourlyResetMinute;
     try {
       tokenLimit = parseTokenLimit(body.tokenLimit) ?? null;
+      dailyTokenLimit = parseTokenLimit(body.dailyTokenLimit) ?? null;
+      dailyResetTime = parseDailyResetTime(body.dailyResetTime);
+      hourlyTokenLimit = parseTokenLimit(body.hourlyTokenLimit) ?? null;
+      hourlyResetMinute = parseHourlyResetMinute(body.hourlyResetMinute);
     } catch (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const allowedModels = body.allowedModels || null;
+
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
-    const apiKey = await createApiKey(name, machineId, tokenLimit);
+    const apiKey = await createApiKey(
+      name,
+      machineId,
+      tokenLimit,
+      allowedModels,
+      dailyTokenLimit,
+      dailyResetTime,
+      hourlyTokenLimit,
+      hourlyResetMinute
+    );
 
     return NextResponse.json({
       key: apiKey.key,
@@ -44,6 +64,11 @@ export async function POST(request) {
       machineId: apiKey.machineId,
       tokenLimit: apiKey.tokenLimit,
       usedTokens: apiKey.usedTokens,
+      allowedModels: apiKey.allowedModels,
+      dailyTokenLimit: apiKey.dailyTokenLimit,
+      dailyResetTime: apiKey.dailyResetTime,
+      hourlyTokenLimit: apiKey.hourlyTokenLimit,
+      hourlyResetMinute: apiKey.hourlyResetMinute,
     }, { status: 201 });
   } catch (error) {
     console.log("Error creating key:", error);

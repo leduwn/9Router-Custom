@@ -23,10 +23,7 @@ function getServerSnapshot() {
 }
 
 export function useTheme() {
-  const theme = useThemeStore((state) => state.theme);
-  const setTheme = useThemeStore((state) => state.setTheme);
-  const toggleTheme = useThemeStore((state) => state.toggleTheme);
-  const initTheme = useThemeStore((state) => state.initTheme);
+  const { theme, setTheme, toggleTheme, initTheme } = useThemeStore();
 
   // Use useSyncExternalStore to safely subscribe to system theme
   const systemPrefersDark = useSyncExternalStore(

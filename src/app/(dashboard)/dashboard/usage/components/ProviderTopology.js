@@ -12,10 +12,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
-import { APP_CONFIG } from "@/shared/constants/config";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
-import BrandMark from "@/shared/components/BrandMark";
-import EmptyState from "@/shared/components/EmptyState";
 
 // Force-stop FE animation if a provider stays active longer than this
 const FE_ACTIVE_TIMEOUT_MS = 60000;
@@ -97,15 +94,15 @@ ProviderNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Center 9Router node — pulse/glow on card only (no expanding rings)
+// Center Duwn node — pulse/glow on card only (no expanding rings)
 function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
       className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-xl border-2 min-w-[130px] ${
         powering
-          ? "topology-router-core border-cyan-300/70 bg-linear-to-br from-primary/25 via-primary/12 to-cyan-400/18"
-          : "border-primary/35 bg-surface/92 shadow-[var(--shadow-soft)]"
+          ? "topology-router-core border-primary bg-primary/15"
+          : "border-primary bg-primary/5 shadow-md"
       }`}
     >
       <Handle type="source" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -113,12 +110,18 @@ function RouterNode({ data }) {
       <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-0 !w-0 !h-0" />
       <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-0 !w-0 !h-0" />
 
-      <BrandMark size="sm" className={`mr-2 ${powering ? "topology-router-icon" : ""}`} />
-      <span className={`text-sm font-bold ${powering ? "topology-router-label text-cyan-200" : "text-primary"}`}>
-        {APP_CONFIG.name}
+      <img
+        src="/favicon.svg"
+        alt="Duwn"
+        className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
+        loading="lazy"
+        decoding="async"
+      />
+      <span className={`text-sm font-bold text-primary ${powering ? "topology-router-label" : ""}`}>
+        Duwn
       </span>
       {data.activeCount > 0 && (
-        <span className="topology-router-badge ml-2 rounded-md bg-cyan-300 px-1.5 py-0.5 text-xs font-bold text-slate-950">
+        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-xs font-bold topology-router-badge">
           {data.activeCount}
         </span>
       )}
@@ -172,7 +175,7 @@ function TopologyEdge({
       <path
         d={edgePath}
         fill="none"
-        stroke="#22d3ee"
+        stroke="#2188ff"
         strokeWidth={10}
         strokeOpacity={0.35}
         strokeLinecap="round"
@@ -202,9 +205,9 @@ function TopologyEdge({
         <circle
           key={`${id}-p-${i}`}
           r={i % 2 === 0 ? 4 : 2.5}
-          fill={i % 3 === 0 ? "#35adff" : i % 3 === 1 ? "#67e8f9" : "#fff"}
+          fill={i % 3 === 2 ? "#fff" : "#2188ff"}
           opacity={0.95}
-          style={{ filter: "drop-shadow(0 0 4px #22d3ee)" }}
+          style={{ filter: "drop-shadow(0 0 4px #2188ff)" }}
         >
           <animateMotion
             dur={`${0.4 + i * 0.08}s`}
@@ -290,7 +293,7 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
 
   const edgeStyle = (active, last, error) => {
     if (error) return { stroke: "#ef4444", strokeWidth: 2.5, opacity: 0.9 };
-    if (active) return { stroke: "#22d3ee", strokeWidth: 3.5, opacity: 1 };
+    if (active) return { stroke: "#2188ff", strokeWidth: 3.5, opacity: 1 };
     if (last) return { stroke: "#f59e0b", strokeWidth: 2, opacity: 0.7 };
     return { stroke: "var(--color-border)", strokeWidth: 1, opacity: 0.3 };
   };
@@ -434,14 +437,11 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 overflow-hidden rounded-2xl border border-border-subtle bg-bg-alt/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:h-[480px]">
+    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
       {providers.length === 0 ? (
-        <EmptyState
-          className="h-full border-0 bg-transparent"
-          icon="hub"
-          title="No providers connected"
-          description="Add a provider to see live routing activity across your Duwn gateway."
-        />
+        <div className="h-full flex items-center justify-center text-text-muted text-sm">
+          No providers connected
+        </div>
       ) : (
         <ReactFlow
           key={providersKey}

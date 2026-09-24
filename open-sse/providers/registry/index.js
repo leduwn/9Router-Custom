@@ -66,8 +66,10 @@ import p63 from "./nebius.js";
 import p64 from "./nvidia.js";
 import p65 from "./ollama-local.js";
 import p66 from "./ollama.js";
+import p123 from "./ollama-search.js";
 import p67 from "./openai.js";
 import p68 from "./opencode-go.js";
+import p68z from "./opencode-zen.js";
 import p69 from "./opencode.js";
 import p70 from "./openrouter.js";
 import p71 from "./perplexity-web.js";
@@ -75,7 +77,7 @@ import p72 from "./perplexity.js";
 import p73 from "./perplexity-agent.js";
 import p74 from "./playht.js";
 import p75 from "./qoder.js";
-import p76 from "./qwen.js";
+import p124 from "./qoder-cn.js";
 import p77 from "./recraft.js";
 import p78 from "./runwayml.js";
 import p79 from "./sdwebui.js";
@@ -116,7 +118,13 @@ import p113 from "./morph.js";
 // import p114 from "./devin-cli.js";
 // import p104 from "./windsurf.js";
 import p115 from "./poolside.js";
-
+import p116 from "./tokenrouter.js";
+import p117 from "./selfhosted-stt.js";
+import p118 from "./selfhosted-tts.js";
+import p119 from "./selfhosted-embedding.js";
+import p120 from "./fish-audio.js";
+import p121 from "./alitp-intl.js";
+import p122 from "./xquik.js";
 export default [
   p0,
   p1,
@@ -185,8 +193,11 @@ export default [
   p64,
   p65,
   p66,
+  p123,
+  p124,
   p67,
   p68,
+  p68z,
   p69,
   p70,
   p71,
@@ -194,7 +205,6 @@ export default [
   p73,
   p74,
   p75,
-  p76,
   p77,
   p78,
   p79,
@@ -233,4 +243,11 @@ export default [
   // p114, // devin-cli — hidden, spawns local agent with shell/fs access
   // p104, // windsurf — hidden, no tool calling
   p115,
+  p116,
+  p117,
+  p118,
+  p119,
+  p120,
+  p121,
+  p122,
 ];

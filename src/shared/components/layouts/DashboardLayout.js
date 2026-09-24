@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useNotificationStore } from "@/store/notificationStore";
-import { APP_CONFIG } from "@/shared/constants/config";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
-
-const UI_BUILD_ID = process.env.NEXT_PUBLIC_DUWN_UI_BUILD_ID || APP_CONFIG.version;
 
 function getToastStyle(type) {
   if (type === "success") {
@@ -40,96 +37,15 @@ export default function DashboardLayout({ children }) {
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
 
-  useEffect(() => {
-    let active = true;
-    let checking = false;
-
-    async function retireLegacyPwaCache() {
-      try {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map((registration) => registration.unregister()));
-        }
-        if ("caches" in globalThis) {
-          const cacheNames = await globalThis.caches.keys();
-          await Promise.all(cacheNames.map((cacheName) => globalThis.caches.delete(cacheName)));
-        }
-      } catch {
-        // Cache cleanup is best-effort; the dashboard remains usable if browser
-        // privacy settings block service-worker or CacheStorage access.
-      }
-    }
-
-    function removeUiCacheParams() {
-      const target = new URL(globalThis.location.href);
-      const hadUiBuild = target.searchParams.has("_duwn_ui");
-      const hadPurge = target.searchParams.has("_duwn_purge");
-      target.searchParams.delete("_duwn_ui");
-      target.searchParams.delete("_duwn_purge");
-      if (hadUiBuild || hadPurge) {
-        globalThis.history.replaceState(
-          globalThis.history.state,
-          "",
-          `${target.pathname}${target.search}${target.hash}`,
-        );
-      }
-    }
-
-    async function syncUiVersion() {
-      if (checking) return;
-      checking = true;
-      try {
-        const response = await fetch(
-          `/api/version?currentOnly=1&ui=${encodeURIComponent(APP_CONFIG.version)}&build=${encodeURIComponent(UI_BUILD_ID)}&t=${Date.now()}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok || !active) return;
-
-        const { currentVersion, uiBuildId } = await response.json();
-        const serverUiBuildId = uiBuildId || currentVersion;
-        if (!serverUiBuildId || serverUiBuildId === UI_BUILD_ID) {
-          removeUiCacheParams();
-          return;
-        }
-
-        const target = new URL(globalThis.location.href);
-        if (target.searchParams.get("_duwn_ui") === serverUiBuildId) return;
-        target.searchParams.set("_duwn_ui", serverUiBuildId);
-        globalThis.location.replace(target.toString());
-      } catch {
-        // Keep the current UI available when the version probe is temporarily unreachable.
-      } finally {
-        checking = false;
-      }
-    }
-
-    retireLegacyPwaCache().finally(syncUiVersion);
-    const onVisible = () => {
-      if (!document.hidden) syncUiVersion();
-    };
-    globalThis.addEventListener("pageshow", syncUiVersion);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      active = false;
-      globalThis.removeEventListener("pageshow", syncUiVersion);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
-
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-bg">
-      <a href="#main-content" className="skip-link">Skip to content</a>
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -right-24 -top-40 size-[34rem] rounded-full bg-primary/[0.055] blur-3xl dark:bg-primary/[0.08]" />
-        <div className="absolute -bottom-56 left-[24%] size-[30rem] rounded-full bg-cyan-400/[0.035] blur-3xl dark:bg-cyan-400/[0.055]" />
-      </div>
+    <div className="flex h-screen w-full overflow-hidden bg-bg">
       <div className="fixed top-4 right-4 z-[80] flex w-[min(92vw,380px)] flex-col gap-2">
         {notifications.map((n) => {
           const style = getToastStyle(n.type);
           return (
             <div
               key={n.id}
-              className={`rounded-xl border px-3.5 py-3 shadow-[var(--shadow-elev)] backdrop-blur-xl ${style.wrapper}`}
+              className={`rounded-lg border px-3 py-2 shadow-lg backdrop-blur-sm ${style.wrapper}`}
             >
               <div className="flex items-start gap-2">
                 <span className="material-symbols-outlined text-[18px] leading-5">{style.icon}</span>
@@ -175,11 +91,11 @@ export default function DashboardLayout({ children }) {
       </div>
 
       {/* Main content */}
-      <main id="main-content" className="relative isolate flex h-full min-w-0 flex-1 flex-col transition-colors duration-300">
+      <main className="flex flex-col flex-1 h-full min-w-0 relative transition-colors duration-300 isolate">
         {/* Faint grid background */}
         <div className="landing-grid absolute inset-0 pointer-events-none -z-10" aria-hidden="true" />
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${pathname === "/dashboard/basic-chat" ? "" : "px-4 pb-8 pt-5 sm:px-6 lg:px-9 lg:pb-10 lg:pt-7"} ${pathname === "/dashboard/basic-chat" ? "flex flex-col overflow-hidden" : ""}`}>
+        <Header key={pathname} onMenuClick={() => setSidebarOpen(true)} />
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${pathname === "/dashboard/basic-chat" ? "" : "p-6 lg:p-10"} ${pathname === "/dashboard/basic-chat" ? "flex flex-col overflow-hidden" : ""}`}>
           <div className={`${pathname === "/dashboard/basic-chat" ? "flex-1 w-full h-full flex flex-col" : "max-w-7xl mx-auto"}`}>{children}</div>
         </div>
       </main>

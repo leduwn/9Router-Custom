@@ -1,76 +1,77 @@
+"use client";
+
 const FEATURES = [
-  {
-    icon: "alt_route",
-    title: "One route, many providers",
-    description: "Keep a stable OpenAI-compatible endpoint while models and providers change behind it.",
-    detail: "Route by model, account, combo, or fallback policy.",
-    className: "md:col-span-2",
+  { 
+    icon: "link", 
+    title: "Unified Endpoint", 
+    desc: "Access all providers via a single standard API URL.",
   },
-  {
-    icon: "key",
-    title: "Credentials in one place",
-    description: "Manage OAuth sessions and API keys without scattering secrets across every tool.",
-    detail: "Local-first credential storage.",
+  { 
+    icon: "bolt", 
+    title: "Easy Setup", 
+    desc: "Get up and running in minutes with npx command.",
   },
-  {
-    icon: "monitoring",
-    title: "Usage you can read",
-    description: "See requests, tokens, quota, cost, and provider health without digging through raw logs.",
-    detail: "Live traffic and account limits.",
+  { 
+    icon: "shield_with_heart", 
+    title: "Model Fallback", 
+    desc: "Automatically switch providers on failure or high latency.",
   },
-  {
-    icon: "terminal",
-    title: "Built for your CLI workflow",
-    description: "Configure Claude Code, Codex, Cursor, Cline, and other tools from the same dashboard.",
-    detail: "Keep technical 9router compatibility.",
+  { 
+    icon: "monitoring", 
+    title: "Usage Tracking", 
+    desc: "Detailed analytics and cost monitoring across all models.",
   },
-  {
-    icon: "sync_alt",
-    title: "Fallback without friction",
-    description: "Move traffic to another account or provider when quotas, latency, or upstream errors get in the way.",
-    detail: "Automatic recovery paths.",
-    className: "md:col-span-2",
+  { 
+    icon: "key", 
+    title: "OAuth & API Keys", 
+    desc: "Securely manage credentials in one vault.",
+  },
+  { 
+    icon: "cloud_sync", 
+    title: "Cloud Sync", 
+    desc: "Sync your configurations across devices instantly.",
+  },
+  { 
+    icon: "terminal", 
+    title: "CLI Support", 
+    desc: "Works with Claude Code, Codex, Cline, Cursor, and more.",
+  },
+  { 
+    icon: "dashboard", 
+    title: "Dashboard", 
+    desc: "Visual dashboard for real-time traffic analysis.",
   },
 ];
 
 export default function Features() {
   return (
-    <section className="render-lazy px-6 py-24 sm:py-32" id="features">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-end">
-          <div>
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">What stays under control</p>
-            <h2 className="text-balance text-3xl font-bold tracking-[-0.045em] text-white sm:text-5xl">
-              Powerful where it matters. Quiet everywhere else.
-            </h2>
-          </div>
-          <p className="max-w-2xl text-pretty text-base leading-7 text-slate-400 lg:justify-self-end">
-            Duwn exposes the depth of the 9router runtime through a calmer interface, so complex routing remains understandable as your setup grows.
+    <section className="py-24 px-6" id="features">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Powerful Features</h2>
+          <p className="text-gray-400 max-w-xl text-lg">
+            Everything you need to manage your AI infrastructure in one place, built for scale.
           </p>
         </div>
-
-        <div className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((feature, index) => (
-            <article
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {FEATURES.map((feature) => (
+            <div 
               key={feature.title}
-              className={`group relative overflow-hidden rounded-[20px] border border-white/[0.075] bg-white/[0.035] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/20 hover:bg-white/[0.055] ${feature.className || ""}`}
+              className="p-6 rounded-xl bg-[#0f1d30] border border-[#20364f] hover:border-[#2188ff]/50 hover:bg-[#2188ff]/5 transition-all duration-300 group"
             >
-              <div className="absolute right-0 top-0 size-32 translate-x-1/3 -translate-y-1/3 rounded-full bg-blue-500/0 blur-3xl transition-colors duration-300 group-hover:bg-blue-500/15" />
-              <div className="relative">
-                <div className="mb-8 flex items-center justify-between">
-                  <span className="flex size-10 items-center justify-center rounded-xl border border-cyan-300/10 bg-cyan-300/[0.07] text-cyan-200">
-                    <span className="material-symbols-outlined text-[21px]">{feature.icon}</span>
-                  </span>
-                  <span className="tabular-nums text-xs font-semibold text-slate-600">0{index + 1}</span>
-                </div>
-                <h3 className="text-lg font-semibold tracking-[-0.02em] text-white">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-400">{feature.description}</p>
-                <p className="mt-6 border-t border-white/[0.065] pt-4 text-xs font-medium text-slate-500">{feature.detail}</p>
+              <div className="w-10 h-10 rounded-lg bg-[#2188ff]/10 flex items-center justify-center mb-4 text-[#2188ff] group-hover:scale-110 transition-transform duration-300">
+                <span className="material-symbols-outlined">{feature.icon}</span>
               </div>
-            </article>
+              <h3 className="text-lg font-bold mb-2 group-hover:text-[#2188ff] transition-colors">
+                {feature.title}
+              </h3>
+              <p className="text-sm text-gray-400 leading-relaxed">{feature.desc}</p>
+            </div>
           ))}
         </div>
       </div>
     </section>
   );
 }
+

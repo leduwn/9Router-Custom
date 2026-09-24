@@ -3,22 +3,18 @@
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import Button from "./Button";
 import BrandMark from "./BrandMark";
+import Button from "./Button";
 import { ConfirmModal } from "./Modal";
-
-const NineRemotePromoModal = dynamic(() => import("./NineRemotePromoModal"), {
-  ssr: false,
-});
+import NineRemotePromoModal from "./NineRemotePromoModal";
 
 // const VISIBLE_MEDIA_KINDS = ["embedding", "image", "imageToText", "tts", "stt", "webSearch", "webFetch", "video", "music"];
-const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt"];
+const VISIBLE_MEDIA_KINDS = ["embedding", "image", "video", "tts", "stt", "systemone"];
 // Combined entry: webSearch + webFetch share one page at /dashboard/media-providers/web
 const COMBINED_WEB_ITEM = { id: "web", label: "Web Fetch & Search", icon: "travel_explore", href: "/dashboard/media-providers/web" };
 
@@ -26,7 +22,7 @@ const navItems = [
   { href: "/dashboard/endpoint", label: "Endpoint & Key", icon: "api" },
   { href: "/dashboard/providers", label: "Providers", icon: "dns" },
   // { href: "/dashboard/basic-chat", label: "Basic Chat", icon: "chat" }, // Hidden
-  { href: "/dashboard/combos", label: "Combos", icon: "layers" },
+  { href: "/dashboard/combos", label: "Combo & Vision Adapter", icon: "layers" },
   { href: "/dashboard/usage", label: "Usage", icon: "bar_chart" },
   { href: "/dashboard/quota", label: "Quota Tracker", icon: "data_usage" },
   { href: "/dashboard/token-saver", label: "Token Saver", icon: "savings" },
@@ -67,20 +63,10 @@ export default function Sidebar({ onClose }) {
 
   // Lazy check for new npm version on mount
   useEffect(() => {
-    let cancelled = false;
-    const checkForUpdate = () => {
-      fetch("/api/version", { cache: "no-store" })
-        .then(res => res.json())
-        .then(data => {
-          if (!cancelled && data.hasUpdate) setUpdateInfo(data);
-        })
-        .catch(() => {});
-    };
-    const timeout = globalThis.setTimeout(checkForUpdate, 1200);
-    return () => {
-      cancelled = true;
-      globalThis.clearTimeout(timeout);
-    };
+    fetch("/api/version")
+      .then(res => res.json())
+      .then(data => { if (data.hasUpdate) setUpdateInfo(data); })
+      .catch(() => {});
   }, []);
 
   const isActive = (href) => {
@@ -124,18 +110,23 @@ export default function Sidebar({ onClose }) {
 
   return (
     <>
-      <aside className="flex min-h-full w-[272px] flex-col border-r border-border-subtle bg-sidebar shadow-[12px_0_40px_-32px_rgba(14,66,120,0.45)] transition-colors duration-300">
+      <aside className="flex w-72 flex-col border-r border-border-subtle bg-vibrancy backdrop-blur-xl transition-colors duration-300 min-h-full">
+        {/* Traffic lights */}
+        <div className="flex items-center gap-2 px-6 pt-5 pb-2">
+          <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
+          <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
+          <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
+        </div>
+
         {/* Logo */}
-        <div className="flex flex-col gap-3 px-5 pb-4 pt-6">
-          <Link href="/dashboard/endpoint" prefetch={false} className="group flex items-center gap-3 rounded-xl">
-            <BrandMark size="md" className="transition-transform duration-200 group-hover:-rotate-2 group-hover:scale-105" />
+        <div className="px-6 py-4 flex flex-col gap-2">
+          <Link href="/dashboard" className="flex items-center gap-3">
+            <BrandMark />
             <div className="flex flex-col">
-              <h1 className="text-[17px] font-bold tracking-[-0.025em] text-text-main">
+              <h1 className="text-lg font-semibold tracking-tight text-text-main">
                 {APP_CONFIG.name}
               </h1>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-text-subtle">
-                Control plane · v{APP_CONFIG.version}
-              </span>
+              <span className="text-xs text-text-muted">v{APP_CONFIG.version}</span>
             </div>
           </Link>
           {updateInfo && (
@@ -165,18 +156,17 @@ export default function Sidebar({ onClose }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4 pt-2 custom-scrollbar" aria-label="Dashboard navigation">
+        <nav className="flex-1 px-4 py-2 space-y-0.5 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              prefetch={false}
               onClick={onClose}
               className={cn(
-                "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
+                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
                 isActive(item.href)
-                  ? "bg-linear-to-r from-primary/15 to-primary/5 font-semibold text-primary"
-                  : "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
               <span
@@ -187,13 +177,13 @@ export default function Sidebar({ onClose }) {
               >
                 {item.icon}
               </span>
-              <span className="font-medium">{item.label}</span>
+              <span className="text-[13px] font-medium">{item.label}</span>
             </Link>
           ))}
 
           {/* System section */}
-          <div className="mt-3 space-y-1 border-t border-border-subtle pt-4">
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-text-subtle">
+          <div className="pt-3 mt-2 space-y-0.5">
+            <p className="px-4 text-xs font-semibold text-text-muted/60 uppercase tracking-wider mb-2">
               System
             </p>
 
@@ -201,14 +191,17 @@ export default function Sidebar({ onClose }) {
             <button
               onClick={() => setMediaOpen((v) => !v)}
               className={cn(
-                "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
+                "w-full flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
                 pathname.startsWith("/dashboard/media-providers")
                   ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
               <span className="material-symbols-outlined text-[18px]">perm_media</span>
               <span className="text-[13px] font-medium flex-1 text-left">Media Providers</span>
+              {MEDIA_PROVIDER_KINDS.some((k) => VISIBLE_MEDIA_KINDS.includes(k.id) && k.isNew) && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] bg-green-500/15 text-green-400">NEW</span>
+              )}
               <span className="material-symbols-outlined text-[14px] transition-transform" style={{ transform: mediaOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
                 expand_more
               </span>
@@ -219,29 +212,30 @@ export default function Sidebar({ onClose }) {
                   <Link
                     key={kind.id}
                     href={`/dashboard/media-providers/${kind.id}`}
-                    prefetch={false}
                     onClick={onClose}
                     className={cn(
-                      "group flex items-center gap-3 rounded-xl px-4 py-2 text-[13px] transition-all duration-200",
+                      "flex items-center gap-3 px-4 py-1 rounded-lg transition-all group",
                       pathname.startsWith(`/dashboard/media-providers/${kind.id}`)
                         ? "bg-primary/10 text-primary"
-                        : "text-text-muted hover:bg-surface-2/80 hover:text-text-main"
+                        : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                     )}
                   >
                     <span className="material-symbols-outlined text-[16px]">{kind.icon}</span>
                     <span className="text-sm">{kind.label}</span>
+                    {kind.isNew && (
+                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] bg-green-500/15 text-green-400">NEW</span>
+                    )}
                   </Link>
                 ))}
                 <Link
                   key={COMBINED_WEB_ITEM.id}
                   href={COMBINED_WEB_ITEM.href}
-                  prefetch={false}
                   onClick={onClose}
                   className={cn(
-                    "group flex items-center gap-3 rounded-xl px-4 py-2 text-[13px] transition-all duration-200",
+                    "flex items-center gap-3 px-4 py-1 rounded-lg transition-all group",
                     pathname.startsWith(COMBINED_WEB_ITEM.href)
                       ? "bg-primary/10 text-primary"
-                      : "text-text-muted hover:bg-surface-2/80 hover:text-text-main"
+                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                   )}
                 >
                   <span className="material-symbols-outlined text-[16px]">{COMBINED_WEB_ITEM.icon}</span>
@@ -254,13 +248,12 @@ export default function Sidebar({ onClose }) {
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 onClick={onClose}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
+                  "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
                   isActive(item.href)
                     ? "bg-primary/10 text-primary"
-                    : "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                    : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                 )}
               >
                 <span
@@ -282,13 +275,12 @@ export default function Sidebar({ onClose }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  prefetch={false}
                   onClick={onClose}
                   className={cn(
-                    "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
+                    "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
                     isActive(item.href)
                       ? "bg-primary/10 text-primary"
-                      : "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                      : "text-text-muted hover:bg-surface-2 hover:text-text-main"
                   )}
                 >
                   <span
@@ -308,26 +300,28 @@ export default function Sidebar({ onClose }) {
             <button
               onClick={() => setShowRemoteModal(true)}
               className={cn(
-                "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
-                "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group w-full",
+                "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
               <span className="material-symbols-outlined text-[18px] group-hover:text-primary transition-colors">
                 computer
               </span>
               <span className="text-[13px] font-medium">9Remote</span>
+              <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] bg-green-500/15 text-green-400">
+                NEW
+              </span>
             </button>
 
             {/* Settings */}
             <Link
               href="/dashboard/profile"
-              prefetch={false}
               onClick={onClose}
               className={cn(
-                "group flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] transition-all duration-200",
+                "flex items-center gap-3 px-3 py-1 rounded-lg transition-all group",
                 isActive("/dashboard/profile")
                   ? "bg-primary/10 text-primary"
-                  : "text-text-muted hover:translate-x-0.5 hover:bg-surface-2/80 hover:text-text-main"
+                  : "text-text-muted hover:bg-surface-2 hover:text-text-main"
               )}
             >
               <span
@@ -346,9 +340,7 @@ export default function Sidebar({ onClose }) {
       </aside>
 
       {/* Remote Promo Modal */}
-      {showRemoteModal ? (
-        <NineRemotePromoModal isOpen onClose={() => setShowRemoteModal(false)} />
-      ) : null}
+      <NineRemotePromoModal isOpen={showRemoteModal} onClose={() => setShowRemoteModal(false)} />
 
       {/* Update Confirmation Modal */}
       <ConfirmModal
@@ -406,7 +398,7 @@ function ManualUpdatePanel({ latestVersion, installCmd, copied, onCopyAndShutdow
           <span className="material-symbols-outlined text-[24px]">content_copy</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Update Duwn{latestVersion ? ` to v${latestVersion}` : ""}</h2>
+          <h2 className="text-lg font-semibold">Update {APP_CONFIG.name}{latestVersion ? ` to v${latestVersion}` : ""}</h2>
           <p className="text-xs text-white/60">
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."

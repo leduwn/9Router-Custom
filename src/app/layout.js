@@ -1,4 +1,5 @@
-import { Manrope } from "next/font/google";
+import { Inter } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "material-symbols/outlined.css";
 import "./globals.css";
 import { ThemeProvider } from "@/shared/components/ThemeProvider";
@@ -10,17 +11,17 @@ import { RuntimeI18nProvider } from "@/i18n/RuntimeI18nProvider";
 // Hook console immediately at module load time (server-side only, runs once)
 initConsoleLogCapture();
 
-const manrope = Manrope({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-manrope",
+  variable: "--font-inter",
 });
 
 export const metadata = {
   title: {
-    default: "Duwn — AI routing control plane",
-    template: "%s · Duwn",
+    default: "Duwn - AI Infrastructure Management",
+    template: "%s | Duwn",
   },
-  description: "Connect providers, route models, manage credentials, and monitor every request from one calm control plane.",
+  description: "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
   applicationName: "Duwn",
   icons: {
     icon: "/favicon.svg",
@@ -35,18 +36,27 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Apply persisted theme before first paint so a reload does not flash the
+            default (light) theme before the client store hydrates. Mirrors the
+            zustand-persist "theme" key and the `dark` class applyTheme() sets. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){document.documentElement.classList.add('fonts-loaded')})}else{document.documentElement.classList.add('fonts-loaded')}`,
+            __html: `(function(){try{var s=localStorage.getItem('theme');var t=s?(JSON.parse(s).state||{}).theme:'system';t=t||'system';var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t==='system'&&m)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `var d=document,r=d.documentElement,f=function(){r.classList.add('fonts-loaded')};if(d.fonts&&d.fonts.load){d.fonts.load('24px "Material Symbols Outlined"').then(f).catch(f);setTimeout(f,3000)}else{f()}`,
           }}
         />
       </head>
-      <body className={`${manrope.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider>
           <RuntimeI18nProvider>
             {children}
           </RuntimeI18nProvider>
         </ThemeProvider>
+        <GoogleAnalytics gaId={"G-LC959F603F"} />
       </body>
     </html>
   );

@@ -79,9 +79,7 @@ export async function GET(request) {
       oidcName: pickOidcDisplayName(payload),
     });
 
-    return NextResponse.redirect(
-      new URL("/dashboard/endpoint", getPublicOrigin(request)),
-    );
+    return NextResponse.redirect(new URL("/dashboard", getPublicOrigin(request)));
   } catch (error) {
     clearOidcCookies(cookieStore);
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message || "oidc_callback_failed")}`, getPublicOrigin(request)));

@@ -2,14 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import BrandMark from "@/shared/components/BrandMark";
-import Button from "@/shared/components/Button";
-import Card from "@/shared/components/Card";
-import EmptyState from "@/shared/components/EmptyState";
-import Input from "@/shared/components/Input";
-import { CardSkeleton } from "@/shared/components/Loading";
-import Modal, { ConfirmModal } from "@/shared/components/Modal";
-import Toggle from "@/shared/components/Toggle";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -26,15 +19,19 @@ import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
 
 const TOKEN_NUMBER_FORMATTER = new Intl.NumberFormat("en-US");
+const VIETNAM_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 function parseTokenLimitInput(value) {
   if (value.trim() === "") return { value: null, error: null };
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
-    return {
-      value: null,
-      error: "Enter a non-negative whole number, or leave blank for unlimited.",
-    };
+    return { value: null, error: "Enter a non-negative whole number, or leave blank for unlimited." };
   }
   return { value: parsed, error: null };
 }
@@ -43,17 +40,41 @@ function formatTokenCount(value) {
   return TOKEN_NUMBER_FORMATTER.format(Number(value) || 0);
 }
 
+function formatVietnamReset(value) {
+  return value ? VIETNAM_DATE_TIME_FORMATTER.format(new Date(value)) : "";
+}
+
+function validateQuotaSchedule(dailyResetTime, hourlyResetMinute) {
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(dailyResetTime)) {
+    return "Choose a valid daily reset time.";
+  }
+  const minute = Number(hourlyResetMinute);
+  if (!Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return "Hourly reset minute must be from 0 to 59.";
+  }
+  return null;
+}
+
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyTokenLimit, setNewKeyTokenLimit] = useState("");
+  const [newDailyTokenLimit, setNewDailyTokenLimit] = useState("");
+  const [newDailyResetTime, setNewDailyResetTime] = useState("00:00");
+  const [newHourlyTokenLimit, setNewHourlyTokenLimit] = useState("");
+  const [newHourlyResetMinute, setNewHourlyResetMinute] = useState("0");
   const [newKeyLimitError, setNewKeyLimitError] = useState("");
   const [editingKey, setEditingKey] = useState(null);
   const [editTokenLimit, setEditTokenLimit] = useState("");
+  const [editDailyTokenLimit, setEditDailyTokenLimit] = useState("");
+  const [editDailyResetTime, setEditDailyResetTime] = useState("00:00");
+  const [editHourlyTokenLimit, setEditHourlyTokenLimit] = useState("");
+  const [editHourlyResetMinute, setEditHourlyResetMinute] = useState("0");
   const [editAllowedModels, setEditAllowedModels] = useState("");
   const [editKeyLimitError, setEditKeyLimitError] = useState("");
+  const [newKeyAllowedModels, setNewKeyAllowedModels] = useState("");
   const [createdKey, setCreatedKey] = useState(null);
   const [confirmState, setConfirmState] = useState(null);
 
@@ -287,11 +308,26 @@ export default function APIPageClient({ machineId }) {
 
   const fetchData = async () => {
     try {
-      const keysRes = await fetch("/api/keys");
-      const keysData = await keysRes.json();
-      if (keysRes.ok) {
-        setKeys(keysData.keys || []);
+      const fetchKeys = async () => {
+        const res = await fetch("/api/keys");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.keys || [];
+      };
+
+      let existing = await fetchKeys();
+      // Auto-provision a default key for first-time users so the endpoint works out of the box.
+      if (existing.length === 0) {
+        try {
+          const createRes = await fetch("/api/keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "Default Key" }),
+          });
+          if (createRes.ok) existing = await fetchKeys();
+        } catch { /* fall through to empty render */ }
       }
+      setKeys(existing);
     } catch (error) {
       console.log("Error fetching data:", error);
     } finally {
@@ -642,8 +678,14 @@ export default function APIPageClient({ machineId }) {
   const handleCreateKey = async () => {
     if (!newKeyName.trim()) return;
     const parsedLimit = parseTokenLimitInput(newKeyTokenLimit);
-    if (parsedLimit.error) {
-      setNewKeyLimitError(parsedLimit.error);
+    const parsedDailyLimit = parseTokenLimitInput(newDailyTokenLimit);
+    const parsedHourlyLimit = parseTokenLimitInput(newHourlyTokenLimit);
+    const validationError = parsedLimit.error
+      || parsedDailyLimit.error
+      || parsedHourlyLimit.error
+      || validateQuotaSchedule(newDailyResetTime, newHourlyResetMinute);
+    if (validationError) {
+      setNewKeyLimitError(validationError);
       return;
     }
 
@@ -654,6 +696,11 @@ export default function APIPageClient({ machineId }) {
         body: JSON.stringify({
           name: newKeyName,
           tokenLimit: parsedLimit.value,
+          dailyTokenLimit: parsedDailyLimit.value,
+          dailyResetTime: newDailyResetTime,
+          hourlyTokenLimit: parsedHourlyLimit.value,
+          hourlyResetMinute: Number(newHourlyResetMinute),
+          allowedModels: newKeyAllowedModels || null,
         }),
       });
       const data = await res.json();
@@ -663,6 +710,11 @@ export default function APIPageClient({ machineId }) {
         await fetchData();
         setNewKeyName("");
         setNewKeyTokenLimit("");
+        setNewDailyTokenLimit("");
+        setNewDailyResetTime("00:00");
+        setNewHourlyTokenLimit("");
+        setNewHourlyResetMinute("0");
+        setNewKeyAllowedModels("");
         setNewKeyLimitError("");
         setShowAddModal(false);
       } else {
@@ -715,15 +767,25 @@ export default function APIPageClient({ machineId }) {
   const openTokenLimitEditor = (key) => {
     setEditingKey(key);
     setEditTokenLimit(key.tokenLimit == null ? "" : String(key.tokenLimit));
-    setEditAllowedModels((key.allowedModels || []).join(", "));
+    setEditDailyTokenLimit(key.dailyTokenLimit == null ? "" : String(key.dailyTokenLimit));
+    setEditDailyResetTime(key.dailyResetTime || "00:00");
+    setEditHourlyTokenLimit(key.hourlyTokenLimit == null ? "" : String(key.hourlyTokenLimit));
+    setEditHourlyResetMinute(String(key.hourlyResetMinute ?? 0));
+    setEditAllowedModels(key.allowedModels || "");
     setEditKeyLimitError("");
   };
 
   const handleUpdateTokenLimit = async () => {
     if (!editingKey) return;
     const parsedLimit = parseTokenLimitInput(editTokenLimit);
-    if (parsedLimit.error) {
-      setEditKeyLimitError(parsedLimit.error);
+    const parsedDailyLimit = parseTokenLimitInput(editDailyTokenLimit);
+    const parsedHourlyLimit = parseTokenLimitInput(editHourlyTokenLimit);
+    const validationError = parsedLimit.error
+      || parsedDailyLimit.error
+      || parsedHourlyLimit.error
+      || validateQuotaSchedule(editDailyResetTime, editHourlyResetMinute);
+    if (validationError) {
+      setEditKeyLimitError(validationError);
       return;
     }
 
@@ -733,9 +795,11 @@ export default function APIPageClient({ machineId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tokenLimit: parsedLimit.value,
-          allowedModels: [...new Set(
-            editAllowedModels.split(",").map((model) => model.trim()).filter(Boolean)
-          )],
+          dailyTokenLimit: parsedDailyLimit.value,
+          dailyResetTime: editDailyResetTime,
+          hourlyTokenLimit: parsedHourlyLimit.value,
+          hourlyResetMinute: Number(editHourlyResetMinute),
+          allowedModels: editAllowedModels || null,
         }),
       });
       const data = await res.json();
@@ -749,37 +813,16 @@ export default function APIPageClient({ machineId }) {
       )));
       setEditingKey(null);
       setEditTokenLimit("");
+      setEditDailyTokenLimit("");
+      setEditDailyResetTime("00:00");
+      setEditHourlyTokenLimit("");
+      setEditHourlyResetMinute("0");
       setEditAllowedModels("");
       setEditKeyLimitError("");
     } catch (error) {
       console.log("Error updating token limit:", error);
       setEditKeyLimitError("Failed to update token limit.");
     }
-  };
-
-  const handleResetUsedTokens = (key) => {
-    setConfirmState({
-      title: "Reset Token Usage",
-      message: `Reset the used token counter for "${key.name}" to 0?`,
-      onConfirm: async () => {
-        setConfirmState(null);
-        try {
-          const res = await fetch(`/api/keys/${key.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resetUsedTokens: true }),
-          });
-          const data = await res.json();
-          if (res.ok) {
-            setKeys((previous) => previous.map((item) => (
-              item.id === key.id ? data.key : item
-            )));
-          }
-        } catch (error) {
-          console.log("Error resetting token usage:", error);
-        }
-      },
-    });
   };
 
   const maskKey = (fullKey) => {
@@ -818,50 +861,6 @@ export default function APIPageClient({ machineId }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="surface-glass relative overflow-hidden rounded-[22px] px-5 py-6 sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-primary/12 blur-3xl" aria-hidden="true" />
-        <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)] lg:items-end">
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <BrandMark size="lg" />
-              <div>
-                <p className="brand-kicker">Duwn control plane</p>
-                <p className="mt-1 text-xs text-text-muted">Local gateway · {machineId?.slice(0, 8) || "this device"}</p>
-              </div>
-            </div>
-            <h2 className="max-w-2xl text-balance text-2xl font-bold leading-tight tracking-[-0.035em] text-text-main sm:text-[32px]">
-              Your AI traffic, one clear view.
-            </h2>
-            <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-text-muted sm:text-[15px]">
-              Connect tools to one stable endpoint, secure access with keys, and keep remote routing under control.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
-              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-green-500/10 text-green-500">
-                <span className="material-symbols-outlined text-[17px]">bolt</span>
-              </span>
-              <p className="text-sm font-bold text-text-main">Online</p>
-              <p className="mt-0.5 text-[11px] text-text-muted">Gateway</p>
-            </div>
-            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
-              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-[17px]">key</span>
-              </span>
-              <p className="tabular-nums text-sm font-bold text-text-main">{keys.length}</p>
-              <p className="mt-0.5 text-[11px] text-text-muted">API keys</p>
-            </div>
-            <div className="rounded-2xl border border-border-subtle bg-surface/72 p-3.5">
-              <span className="mb-2 flex size-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
-                <span className="material-symbols-outlined text-[17px]">language</span>
-              </span>
-              <p className="text-sm font-bold text-text-main">{tunnelEnabled || tsEnabled ? "Active" : "Local"}</p>
-              <p className="mt-0.5 text-[11px] text-text-muted">Remote access</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Endpoint Card */}
       <Card>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -1139,14 +1138,18 @@ export default function APIPageClient({ machineId }) {
         )}
 
         {keys.length === 0 ? (
-          <EmptyState
-            icon="vpn_key"
-            title="No API keys yet"
-            description="Create a key before connecting remote tools or sharing this endpoint."
-            action={<Button icon="add" onClick={() => setShowAddModal(true)}>Create Key</Button>}
-          />
+          <div className="text-center py-12">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
+              <span className="material-symbols-outlined text-[32px]">vpn_key</span>
+            </div>
+            <p className="text-text-main font-medium mb-1">No API keys yet</p>
+            <p className="text-sm text-text-muted mb-4">Create your first API key to get started</p>
+            <Button icon="add" onClick={() => setShowAddModal(true)}>
+              Create Key
+            </Button>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col">
             {keys.map((key) => {
               const usedTokens = Number(key.usedTokens) || 0;
               const hasTokenLimit = key.tokenLimit != null;
@@ -1155,142 +1158,142 @@ export default function APIPageClient({ machineId }) {
               const usagePercent = hasTokenLimit
                 ? (tokenLimit === 0 ? 100 : Math.min((usedTokens / tokenLimit) * 100, 100))
                 : 0;
+              const quotaRows = [
+                {
+                  label: "Total",
+                  used: usedTokens,
+                  limit: tokenLimit,
+                  reached: limitReached,
+                  percent: usagePercent,
+                  resetAt: null,
+                },
+              ];
+              if (key.dailyTokenLimit != null) {
+                const dailyLimit = Number(key.dailyTokenLimit);
+                const dailyUsed = Number(key.dailyUsedTokens) || 0;
+                quotaRows.push({
+                  label: "Daily",
+                  used: dailyUsed,
+                  limit: dailyLimit,
+                  reached: dailyUsed >= dailyLimit,
+                  percent: dailyLimit === 0 ? 100 : Math.min((dailyUsed / dailyLimit) * 100, 100),
+                  resetAt: key.dailyResetAt,
+                });
+              }
+              if (key.hourlyTokenLimit != null) {
+                const hourlyLimit = Number(key.hourlyTokenLimit);
+                const hourlyUsed = Number(key.hourlyUsedTokens) || 0;
+                quotaRows.push({
+                  label: "Hourly",
+                  used: hourlyUsed,
+                  limit: hourlyLimit,
+                  reached: hourlyUsed >= hourlyLimit,
+                  percent: hourlyLimit === 0 ? 100 : Math.min((hourlyUsed / hourlyLimit) * 100, 100),
+                  resetAt: key.hourlyResetAt,
+                });
+              }
 
               return (
                 <div
                   key={key.id}
-                  className={`group rounded-2xl border border-border-subtle bg-surface-2/45 p-4 transition-colors hover:border-primary/25 hover:bg-surface-2/70 ${
-                    key.isActive === false ? "opacity-60" : ""
-                  }`}
+                  className={`group flex items-center justify-between gap-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${key.isActive === false ? "opacity-60" : ""}`}
                 >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-text-main">{key.name}</p>
-                        {limitReached && (
-                          <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-500">
-                            Limit reached
-                          </span>
-                        )}
-                        {key.isActive === false && (
-                          <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-500">
-                            Paused
-                          </span>
-                        )}
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{key.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-xs text-text-muted font-mono">
+                        {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
+                      </code>
+                      <button
+                        onClick={() => toggleKeyVisibility(key.id)}
+                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
+                        title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => copy(key.key, key.id)}
+                        className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-all"
+                        title="Copy key"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          {copied === key.id ? "check" : "content_copy"}
+                        </span>
+                      </button>
+                    </div>
 
-                      <div className="mt-2 flex min-w-0 items-center gap-1.5">
-                        <code className="min-w-0 truncate font-mono text-xs text-text-muted">
-                          {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={() => toggleKeyVisibility(key.id)}
-                          className="rounded-lg p-1 text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                          title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
-                          aria-label={visibleKeys.has(key.id) ? "Hide API key" : "Show API key"}
-                        >
-                          <span className="material-symbols-outlined text-[15px]">
-                            {visibleKeys.has(key.id) ? "visibility_off" : "visibility"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => copy(key.key, key.id)}
-                          className="rounded-lg p-1 text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                          title="Copy key"
-                          aria-label="Copy API key"
-                        >
-                          <span className="material-symbols-outlined text-[15px]">
-                            {copied === key.id ? "check" : "content_copy"}
-                          </span>
-                        </button>
-                      </div>
-
-                      <div className="mt-4 max-w-xl">
-                        <p className={`text-xs ${limitReached ? "font-semibold text-red-500" : "text-text-main"}`}>
-                          Usage: {formatTokenCount(usedTokens)}
-                          {hasTokenLimit ? ` / ${formatTokenCount(tokenLimit)} tokens` : " / Unlimited"}
-                        </p>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-bg-alt">
-                          <div
-                            className={`h-full rounded-full transition-[width] duration-300 ${
-                              limitReached
-                                ? "bg-red-500"
-                                : hasTokenLimit
-                                  ? "bg-gradient-to-r from-primary to-cyan-400"
-                                  : "bg-primary/25"
-                            }`}
-                            style={{ width: hasTokenLimit ? `${usagePercent}%` : "100%" }}
-                          />
-                        </div>
-                        <p className="mt-2 text-[11px] text-text-muted">
-                          Created {new Date(key.createdAt).toLocaleDateString()}
-                        </p>
-                        {key.allowedModels?.length > 0 && (
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                            <span className="font-medium text-text-main">Allowed Models:</span>
-                            {key.allowedModels.map((model) => (
-                              <code
-                                key={model}
-                                className="rounded-md bg-bg-alt px-1.5 py-0.5 font-mono text-[11px] text-text-muted"
-                              >
-                                {model}
-                              </code>
-                            ))}
+                    <div className="mt-2 max-w-md space-y-2">
+                      {quotaRows.map((quota) => (
+                        <div key={quota.label}>
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className={quota.reached ? "font-medium text-red-500" : "text-text-muted"}>
+                              {quota.label}: {formatTokenCount(quota.used)} used
+                              {quota.limit == null ? " - Unlimited" : ` / ${formatTokenCount(quota.limit)} tokens`}
+                            </span>
+                            {quota.reached && <span className="font-medium text-red-500">Limit reached</span>}
                           </div>
-                        )}
-                      </div>
+                          {quota.limit != null && (
+                            <>
+                              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-3">
+                                <div
+                                  className={`h-full rounded-full transition-all ${quota.reached ? "bg-red-500" : "bg-primary"}`}
+                                  style={{ width: `${quota.percent}%` }}
+                                />
+                              </div>
+                              {quota.resetAt && (
+                                <p className="mt-1 text-[11px] text-text-muted">
+                                  Resets {formatVietnamReset(quota.resetAt)} (Vietnam time)
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
 
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => openTokenLimitEditor(key)}
-                        className="flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-text-muted transition-colors hover:bg-primary/10 hover:text-primary"
-                        title="Edit token limit"
-                        aria-label={`Edit ${key.name}`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleResetUsedTokens(key)}
-                        className="rounded-xl p-2 text-amber-500 transition-colors hover:bg-amber-500/10"
-                        title="Reset tokens"
-                        aria-label={`Reset token usage for ${key.name}`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-                      </button>
-                      <Toggle
-                        size="sm"
-                        checked={key.isActive ?? true}
-                        onChange={(checked) => {
-                          if (key.isActive && !checked) {
-                            setConfirmState({
-                              title: "Pause API Key",
-                              message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                              onConfirm: async () => {
-                                setConfirmState(null);
-                                handleToggleKey(key.id, checked);
-                              }
-                            });
-                          } else {
-                            handleToggleKey(key.id, checked);
-                          }
-                        }}
-                        title={key.isActive ? "Pause key" : "Resume key"}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteKey(key.id)}
-                        className="rounded-xl p-2 text-red-500 transition-colors hover:bg-red-500/10"
-                        title="Delete key"
-                        aria-label={`Delete ${key.name}`}
-                      >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                      </button>
-                    </div>
+                    <p className="text-xs text-text-muted mt-1.5">
+                      Created {new Date(key.createdAt).toLocaleDateString()}
+                    </p>
+                    {key.isActive === false && (
+                      <p className="text-xs text-orange-500 mt-1">Paused</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openTokenLimitEditor(key)}
+                      className="p-2 hover:bg-primary/10 rounded text-text-muted hover:text-primary transition-all"
+                      title="Edit API key"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
+                    <Toggle
+                      size="sm"
+                      checked={key.isActive ?? true}
+                      onChange={(checked) => {
+                        if (key.isActive && !checked) {
+                          setConfirmState({
+                            title: "Pause API Key",
+                            message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                            onConfirm: async () => {
+                              setConfirmState(null);
+                              handleToggleKey(key.id, checked);
+                            }
+                          });
+                        } else {
+                          handleToggleKey(key.id, checked);
+                        }
+                      }}
+                      title={key.isActive ? "Pause key" : "Resume key"}
+                    />
+                    <button
+                      onClick={() => handleDeleteKey(key.id)}
+                      className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                      title="Delete key"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -1307,6 +1310,11 @@ export default function APIPageClient({ machineId }) {
           setShowAddModal(false);
           setNewKeyName("");
           setNewKeyTokenLimit("");
+          setNewDailyTokenLimit("");
+          setNewDailyResetTime("00:00");
+          setNewHourlyTokenLimit("");
+          setNewHourlyResetMinute("0");
+          setNewKeyAllowedModels("");
           setNewKeyLimitError("");
         }}
       >
@@ -1331,6 +1339,66 @@ export default function APIPageClient({ machineId }) {
             hint="Maximum total tokens this key can use. Leave blank for unlimited."
             error={newKeyLimitError}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Daily Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={newDailyTokenLimit}
+              onChange={(e) => {
+                setNewDailyTokenLimit(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Leave blank for unlimited."
+            />
+            <Input
+              label="Daily Reset Time (Vietnam)"
+              type="time"
+              value={newDailyResetTime}
+              onChange={(e) => {
+                setNewDailyResetTime(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              hint="Resets every day at this UTC+7 time."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Hourly Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={newHourlyTokenLimit}
+              onChange={(e) => {
+                setNewHourlyTokenLimit(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Leave blank for unlimited."
+            />
+            <Input
+              label="Hourly Reset Minute (Vietnam)"
+              type="number"
+              min="0"
+              max="59"
+              step="1"
+              value={newHourlyResetMinute}
+              onChange={(e) => {
+                setNewHourlyResetMinute(e.target.value);
+                setNewKeyLimitError("");
+              }}
+              hint="For example, 15 resets at xx:15 each hour."
+            />
+          </div>
+          <Input
+            label="Allowed Models (optional, comma-separated)"
+            value={newKeyAllowedModels}
+            onChange={(e) => setNewKeyAllowedModels(e.target.value)}
+            placeholder="e.g. gpt-4, claude-3-5-sonnet"
+            hint="Leave blank to allow all models."
+          />
           <div className="flex gap-2">
             <Button onClick={handleCreateKey} fullWidth disabled={!newKeyName.trim()}>
               Create
@@ -1340,6 +1408,10 @@ export default function APIPageClient({ machineId }) {
                 setShowAddModal(false);
                 setNewKeyName("");
                 setNewKeyTokenLimit("");
+                setNewDailyTokenLimit("");
+                setNewDailyResetTime("00:00");
+                setNewHourlyTokenLimit("");
+                setNewHourlyResetMinute("0");
                 setNewKeyLimitError("");
               }}
               variant="ghost"
@@ -1351,33 +1423,29 @@ export default function APIPageClient({ machineId }) {
         </div>
       </Modal>
 
-      {/* Edit API Key limits Modal */}
+      {/* Edit API Key Modal */}
       <Modal
         isOpen={!!editingKey}
         title={`Edit API Key: ${editingKey?.name || ""}`}
         onClose={() => {
           setEditingKey(null);
           setEditTokenLimit("");
+          setEditDailyTokenLimit("");
+          setEditDailyResetTime("00:00");
+          setEditHourlyTokenLimit("");
+          setEditHourlyResetMinute("0");
           setEditAllowedModels("");
           setEditKeyLimitError("");
         }}
       >
         <div className="flex flex-col gap-4">
-          <div className="rounded-2xl border border-border-subtle bg-surface-2/60 p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-[19px]">data_usage</span>
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-text-main">{editingKey?.name}</p>
-                <p className="mt-0.5 text-xs text-text-muted">
-                  {formatTokenCount(editingKey?.usedTokens)} tokens used
-                </p>
-              </div>
-            </div>
+          <div>
+            <p className="mt-1 text-xs text-text-muted">
+              Used {formatTokenCount(editingKey?.usedTokens)} tokens so far. Changing the limit does not reset usage.
+            </p>
           </div>
           <Input
-            label="Token Limit (optional)"
+            label="Token Limit"
             type="number"
             min="0"
             step="1"
@@ -1387,15 +1455,68 @@ export default function APIPageClient({ machineId }) {
               setEditKeyLimitError("");
             }}
             placeholder="Unlimited"
-            hint="Leave blank for unlimited. Changing the limit does not reset used tokens."
+            hint="Leave blank to remove the limit."
             error={editKeyLimitError}
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Daily Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={editDailyTokenLimit}
+              onChange={(e) => {
+                setEditDailyTokenLimit(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Usage resets on the Vietnam schedule."
+            />
+            <Input
+              label="Daily Reset Time (Vietnam)"
+              type="time"
+              value={editDailyResetTime}
+              onChange={(e) => {
+                setEditDailyResetTime(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              hint="UTC+7, independent of server time."
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Hourly Token Limit"
+              type="number"
+              min="0"
+              step="1"
+              value={editHourlyTokenLimit}
+              onChange={(e) => {
+                setEditHourlyTokenLimit(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              placeholder="Unlimited"
+              hint="Usage resets every hour."
+            />
+            <Input
+              label="Hourly Reset Minute (Vietnam)"
+              type="number"
+              min="0"
+              max="59"
+              step="1"
+              value={editHourlyResetMinute}
+              onChange={(e) => {
+                setEditHourlyResetMinute(e.target.value);
+                setEditKeyLimitError("");
+              }}
+              hint="For example, 15 resets at xx:15 each hour."
+            />
+          </div>
           <Input
             label="Allowed Models (optional, comma-separated)"
             value={editAllowedModels}
             onChange={(e) => setEditAllowedModels(e.target.value)}
-            placeholder="e.g. claude-sonnet-4, openai/gpt-4o"
-            hint="Leave blank to allow every model."
+            placeholder="e.g. gpt-4, claude-3-5-sonnet"
+            hint="Leave blank to allow all models."
           />
           <div className="flex gap-2">
             <Button onClick={handleUpdateTokenLimit} fullWidth>
@@ -1405,7 +1526,10 @@ export default function APIPageClient({ machineId }) {
               onClick={() => {
                 setEditingKey(null);
                 setEditTokenLimit("");
-                setEditAllowedModels("");
+                setEditDailyTokenLimit("");
+                setEditDailyResetTime("00:00");
+                setEditHourlyTokenLimit("");
+                setEditHourlyResetMinute("0");
                 setEditKeyLimitError("");
               }}
               variant="ghost"
@@ -1467,7 +1591,7 @@ export default function APIPageClient({ machineId }) {
                   Cloudflare Tunnel
                 </p>
                 <p className="text-sm text-text-muted">
-                  Expose your local Duwn gateway to the internet. No port forwarding or static IP needed. Share the endpoint URL with your team or use it in Cursor, Cline, and other AI tools from anywhere.
+                  Expose your local Duwn gateway to the internet. No port forwarding, no static IP needed. Share endpoint URL with your team or use it in Cursor, Cline, and other AI tools from anywhere.
                 </p>
               </div>
             </div>

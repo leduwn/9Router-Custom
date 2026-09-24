@@ -1,12 +1,12 @@
 export default function manifest() {
   return {
-    name: 'Duwn — AI routing control plane',
+    name: 'Duwn - AI Infrastructure Management',
     short_name: 'Duwn',
-    description: 'Connect providers, route models, manage credentials, and monitor every request from one control plane.',
+    description: 'One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.',
     start_url: '/',
     display: 'standalone',
     background_color: '#07111f',
-    theme_color: '#07111f',
+    theme_color: '#2188ff',
     orientation: 'portrait-primary',
     icons: [
       {

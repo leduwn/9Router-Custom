@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  nextResponse: { kind: "next", headers: new Headers() },
+  nextResponse: Symbol("next"),
   jsonResponse: vi.fn((body, init) => ({
     status: init?.status || 200,
     body,
@@ -16,7 +16,7 @@ vi.mock("next/server", () => ({
   NextResponse: {
     next: vi.fn(() => mocks.nextResponse),
     json: mocks.jsonResponse,
-    redirect: vi.fn((url) => ({ status: 307, url, headers: new Headers() })),
+    redirect: vi.fn((url) => ({ status: 307, url })),
   },
 }));
 
@@ -35,6 +35,8 @@ vi.mock("@/lib/auth/dashboardSession", () => ({
 
 const { proxy, __test__ } = await import("../../src/dashboardGuard.js");
 
+const PEER_TOKEN = "peer-token-fixture";
+
 function request(pathname, headers = {}) {
   const normalizedHeaders = new Headers(headers);
   return {
@@ -45,9 +47,16 @@ function request(pathname, headers = {}) {
   };
 }
 
+// A request that actually came through custom-server.js: peer IP stamped from the TCP
+// socket and proven by the per-process secret.
+function localRequest(pathname, headers = {}) {
+  return request(pathname, { "x-9r-peer-token": PEER_TOKEN, "x-9r-real-ip": "127.0.0.1", ...headers });
+}
+
 describe("dashboard guard public LLM API access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
     mocks.getSettings.mockResolvedValue({ requireLogin: true });
     mocks.validateApiKey.mockResolvedValue(false);
     mocks.getConsistentMachineId.mockResolvedValue("cli-token");
@@ -55,14 +64,14 @@ describe("dashboard guard public LLM API access", () => {
   });
 
   it("allows loopback public LLM API without API key", async () => {
-    const response = await proxy(request("/v1/chat/completions", { host: "localhost:20128" }));
+    const response = await proxy(localRequest("/v1/chat/completions", { host: "localhost:20128" }));
 
     expect(response).toBe(mocks.nextResponse);
     expect(mocks.validateApiKey).not.toHaveBeenCalled();
   });
 
   it("rejects remote Host-spoof when real peer IP is non-loopback", async () => {
-    const response = await proxy(request("/v1/chat/completions", {
+    const response = await proxy(localRequest("/v1/chat/completions", {
       host: "localhost",
       "x-9r-real-ip": "10.204.111.34",
     }));
@@ -72,7 +81,7 @@ describe("dashboard guard public LLM API access", () => {
   });
 
   it("allows loopback peer IP regardless of Host", async () => {
-    const response = await proxy(request("/v1/chat/completions", {
+    const response = await proxy(localRequest("/v1/chat/completions", {
       host: "localhost:20128",
       "x-9r-real-ip": "127.0.0.1",
     }));
@@ -89,7 +98,7 @@ describe("dashboard guard public LLM API access", () => {
   });
 
   it("allows loopback rewritten public LLM API without API key", async () => {
-    const response = await proxy(request("/api/v1/chat/completions", { host: "localhost:20128" }));
+    const response = await proxy(localRequest("/api/v1/chat/completions", { host: "localhost:20128" }));
 
     expect(response).toBe(mocks.nextResponse);
     expect(mocks.validateApiKey).not.toHaveBeenCalled();
@@ -114,6 +123,25 @@ describe("dashboard guard public LLM API access", () => {
 
     expect(response.status).toBe(401);
     expect(response.body.error).toBe("API key required for remote API access");
+  });
+
+  it("rejects remote /responses rewrite without API key", async () => {
+    const response = await proxy(request("/responses", { host: "router.example.com" }));
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("API key required for remote API access");
+  });
+
+  it("allows remote /responses rewrite with a valid API key", async () => {
+    mocks.validateApiKey.mockResolvedValue(true);
+
+    const response = await proxy(request("/responses", {
+      host: "router.example.com",
+      authorization: "Bearer sk-valid",
+    }));
+
+    expect(response).toBe(mocks.nextResponse);
+    expect(mocks.validateApiKey).toHaveBeenCalledWith("sk-valid");
   });
 
   it("allows remote codex rewrite with valid API key", async () => {
@@ -191,6 +219,7 @@ describe("dashboard guard public LLM API access", () => {
 describe("dashboard guard local-only access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
     mocks.getSettings.mockResolvedValue({ requireLogin: true });
     mocks.validateApiKey.mockResolvedValue(false);
     mocks.getConsistentMachineId.mockResolvedValue("cli-token");
@@ -207,7 +236,7 @@ describe("dashboard guard local-only access", () => {
   });
 
   it("rejects local-only route on loopback when requireLogin=true and no JWT", async () => {
-    const response = await proxy(request("/api/mcp/filesystem/sse", {
+    const response = await proxy(localRequest("/api/mcp/filesystem/sse", {
       host: "localhost:20128",
       origin: "http://localhost:20128",
     }));
@@ -219,7 +248,7 @@ describe("dashboard guard local-only access", () => {
   it("allows local-only route on loopback when requireLogin=false", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(request("/api/cli-tools/antigravity-mitm", {
+    const response = await proxy(localRequest("/api/cli-tools/antigravity-mitm", {
       host: "localhost:20128",
       origin: "http://localhost:20128",
     }));
@@ -240,7 +269,7 @@ describe("dashboard guard local-only access", () => {
   it("rejects local-only route when Origin is non-loopback (CSRF block)", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(request("/api/cli-tools/antigravity-mitm", {
+    const response = await proxy(localRequest("/api/cli-tools/antigravity-mitm", {
       host: "localhost:20128",
       origin: "http://evil.example.com",
     }));
@@ -259,61 +288,6 @@ describe("dashboard guard local-only access", () => {
 });
 
 describe("dashboard guard helpers", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.nextResponse.headers = new Headers();
-    mocks.getSettings.mockResolvedValue({ requireLogin: false });
-  });
-
-  it("redirects authenticated /dashboard to the canonical endpoint document", async () => {
-    const dashboardRequest = request("/dashboard", { host: "localhost:20128" });
-    dashboardRequest.cookies.get.mockReturnValue({ value: "valid-token" });
-    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
-
-    const response = await proxy(dashboardRequest);
-
-    expect(response.status).toBe(307);
-    expect(response.url.pathname).toBe("/dashboard/endpoint");
-    expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
-  });
-
-  it("redirects / to the canonical endpoint document", async () => {
-    const response = await proxy(request("/", { host: "localhost:20128" }));
-
-    expect(response.status).toBe(307);
-    expect(response.url.pathname).toBe("/dashboard/endpoint");
-    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
-  });
-
-  it("marks dashboard documents as private and non-cacheable", () => {
-    const response = { headers: new Headers() };
-
-    expect(__test__.applyDocumentNoStore(response)).toBe(response);
-    expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("cdn-cache-control")).toBe("no-store");
-  });
-
-  it("clears the old document cache when a versioned UI URL is loaded", async () => {
-    const response = await proxy(request(
-      "/dashboard/endpoint?_duwn_ui=new-build",
-      { host: "localhost:20128" },
-    ));
-
-    expect(response).toBe(mocks.nextResponse);
-    expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(response.headers.get("clear-site-data")).toBe("\"cache\"");
-  });
-
-  it("retires legacy PWA storage on the explicit purge URL", async () => {
-    const response = await proxy(request(
-      "/dashboard/endpoint?_duwn_purge=1",
-      { host: "localhost:20128" },
-    ));
-
-    expect(response.headers.get("clear-site-data")).toBe("\"cache\", \"storage\"");
-  });
-
   it("extracts bearer API keys before x-api-key", () => {
     const apiRequest = request("/v1/chat/completions", {
       authorization: "Bearer bearer-key",

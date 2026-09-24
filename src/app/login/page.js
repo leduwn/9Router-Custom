@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Card from "@/shared/components/Card";
-import Button from "@/shared/components/Button";
-import Input from "@/shared/components/Input";
+import { Card, Button, Input } from "@/shared/components";
 import BrandMark from "@/shared/components/BrandMark";
 import { APP_CONFIG } from "@/shared/constants/config";
 
@@ -15,8 +13,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [hasPassword, setHasPassword] = useState(null);
   const [authMode, setAuthMode] = useState("password");
+  const [ssoType, setSsoType] = useState("oidc");
   const [oidcConfigured, setOidcConfigured] = useState(false);
   const [oidcLoginLabel, setOidcLoginLabel] = useState("Sign in with OIDC");
+  const [samlConfigured, setSamlConfigured] = useState(false);
+  const [samlLoginLabel, setSamlLoginLabel] = useState("Sign in with SAML SSO");
   const [mustChange, setMustChange] = useState(false);
   const [newPassword, setNewPassword] = useState("");
 
@@ -41,14 +42,17 @@ export default function LoginPage() {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.requireLogin === false) {
-            window.location.assign("/dashboard/endpoint");
+          if (data.authenticated === true || data.requireLogin === false) {
+            window.location.assign("/dashboard");
             return;
           }
           setHasPassword(!!data.hasPassword);
           setAuthMode(data.authMode || "password");
+          setSsoType(data.ssoType || "oidc");
           setOidcConfigured(data.oidcConfigured === true);
           setOidcLoginLabel(data.oidcLoginLabel || "Sign in with OIDC");
+          setSamlConfigured(data.samlConfigured === true);
+          setSamlLoginLabel(data.samlLoginLabel || "Sign in with SAML SSO");
         } else {
           // Safe fallback on non-OK response to avoid infinite loading state.
           setHasPassword(true);
@@ -80,7 +84,7 @@ export default function LoginPage() {
           setMustChange(true);
           return;
         }
-        window.location.assign("/dashboard/endpoint");
+        window.location.assign("/dashboard");
       } else {
         const data = await res.json();
         setError(data.error || "Invalid password");
@@ -106,7 +110,7 @@ export default function LoginPage() {
         body: JSON.stringify({ currentPassword: password, newPassword }),
       });
       if (res.ok) {
-        window.location.assign("/dashboard/endpoint");
+        window.location.assign("/dashboard");
       } else {
         const data = await res.json();
         setError(data.error || "Failed to set password");
@@ -122,8 +126,18 @@ export default function LoginPage() {
     window.location.href = "/api/auth/oidc/start";
   };
 
-  const oidcAvailable = oidcConfigured && ["oidc", "both"].includes(authMode);
-  const passwordAvailable = authMode !== "oidc" || !oidcConfigured;
+  const handleSamlLogin = () => {
+    window.location.href = "/api/auth/saml/start";
+  };
+
+  const isSsoEnabled = ["sso", "oidc", "saml", "both"].includes(authMode);
+  const activeSsoType = ssoType || (authMode === "saml" ? "saml" : "oidc");
+
+  const samlAvailable = isSsoEnabled && activeSsoType === "saml" && samlConfigured;
+  const oidcAvailable = isSsoEnabled && activeSsoType === "oidc" && oidcConfigured;
+  const ssoAvailable = samlAvailable || oidcAvailable;
+
+  const passwordAvailable = authMode === "password" || authMode === "both" || !ssoAvailable;
 
   // Show loading state while checking password
   if (hasPassword === null) {
@@ -138,23 +152,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg p-4">
+    <div className="min-h-screen flex items-center justify-center bg-bg p-4 relative overflow-hidden">
       {/* Faint grid background */}
       <div className="landing-grid absolute inset-0 pointer-events-none" aria-hidden="true" />
-      <div className="pointer-events-none absolute -left-28 -top-32 size-[28rem] rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
-      <div className="pointer-events-none absolute -bottom-40 -right-24 size-[24rem] rounded-full bg-cyan-400/[0.07] blur-3xl" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md">
-        <div className="mb-7 text-center">
-          <BrandMark size="xl" className="mx-auto mb-5" />
-          <h1 className="mb-2 text-3xl font-bold tracking-[-0.04em] text-text-main">{APP_CONFIG.name}</h1>
-          <p className="text-sm leading-6 text-text-muted">
-            {authMode === "oidc" && oidcConfigured
+        <div className="text-center mb-8">
+          <BrandMark size="xl" className="mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-primary mb-2">{APP_CONFIG.name}</h1>
+          <p className="text-text-muted">
+            {samlAvailable
+              ? "Sign in with SAML 2.0 Single Sign-On"
+              : oidcAvailable
               ? "Sign in with your OIDC provider to access the dashboard"
               : "Enter your password to access the dashboard"}
           </p>
         </div>
 
-        <Card elev className="surface-glass">
+        <Card>
           {mustChange ? (
             <form onSubmit={handleSetNewPassword} className="flex flex-col gap-4">
               <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
@@ -178,25 +192,31 @@ export default function LoginPage() {
             </form>
           ) : (
           <div className="flex flex-col gap-4">
+            {samlAvailable && (
+              <Button type="button" variant="primary" className="w-full" onClick={handleSamlLogin}>
+                {samlLoginLabel}
+              </Button>
+            )}
+
             {oidcAvailable && (
               <Button type="button" variant="primary" className="w-full" onClick={handleOidcLogin}>
                 {oidcLoginLabel}
               </Button>
             )}
 
-            {oidcAvailable && passwordAvailable && <div className="h-px bg-border/60" />}
+            {ssoAvailable && passwordAvailable && <div className="h-px bg-border/60" />}
 
             {passwordAvailable ? (
               <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                {((authMode === "oidc" && !oidcConfigured) || (authMode === "both" && !oidcConfigured)) && (
+                {isSsoEnabled && !ssoAvailable && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-                    OIDC login is enabled, but the issuer/client fields are not configured yet. Password login is still available for recovery.
+                    {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login is enabled, but configuration is incomplete. Password login is still available for recovery.
                   </p>
                 )}
 
-                {authMode === "both" && oidcConfigured && (
+                {authMode === "both" && ssoAvailable && (
                   <p className="text-xs text-text-muted text-center">
-                    Password and OIDC login are both enabled.
+                    Password and {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login are both enabled.
                   </p>
                 )}
 

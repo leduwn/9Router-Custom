@@ -1,20 +1,9 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import dynamic from "next/dynamic";
 import { useSearchParams, useRouter } from "next/navigation";
-import UsageStats from "@/shared/components/UsageStats";
-import { CardSkeleton } from "@/shared/components/Loading";
-import SegmentedControl from "@/shared/components/SegmentedControl";
-
-const RequestLogger = dynamic(() => import("@/shared/components/RequestLogger"), {
-  loading: () => <CardSkeleton />,
-  ssr: false,
-});
-const RequestDetailsTab = dynamic(() => import("./components/RequestDetailsTab"), {
-  loading: () => <CardSkeleton />,
-  ssr: false,
-});
+import { UsageStats, RequestLogger, CardSkeleton, SegmentedControl } from "@/shared/components";
+import RequestDetailsTab from "./components/RequestDetailsTab";
 
 const PERIODS = [
   { value: "today", label: "Today" },
@@ -22,6 +11,7 @@ const PERIODS = [
   { value: "7d", label: "7D" },
   { value: "30d", label: "30D" },
   { value: "60d", label: "60D" },
+  { value: "all", label: "All" },
 ];
 
 export default function UsagePage() {
