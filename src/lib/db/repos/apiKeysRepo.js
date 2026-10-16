@@ -8,6 +8,8 @@ import {
   parseHourlyResetMinute,
   VIETNAM_TIME_ZONE,
 } from "../../apiKeyTimeLimits.js";
+import { keyAccessFromColumns, keyAccessToColumns } from "@/shared/utils/keyAccess.js";
+import { KEY_ACCESS_UNRESTRICTED } from "@/shared/constants/keyAccess.js";
 
 function rowToKey(row) {
   if (!row) return null;
@@ -25,6 +27,7 @@ function rowToKey(row) {
     hourlyTokenLimit: row.hourlyTokenLimit == null ? null : Number(row.hourlyTokenLimit),
     hourlyResetMinute: row.hourlyResetMinute == null ? 0 : Number(row.hourlyResetMinute),
     createdAt: row.createdAt,
+    access: keyAccessFromColumns(row.accessRestricted, row.accessAllow),
   };
 }
 
@@ -75,7 +78,9 @@ export async function getApiKeyById(id) {
   return withQuotaUsage(db, row);
 }
 
+// Used by the /v1 handlers to read the presented key's quota and access settings.
 export async function getApiKeyByKey(key) {
+  if (!key) return null;
   const db = await getAdapter();
   const row = db.get(`SELECT * FROM apiKeys WHERE key = ?`, [key]);
   return withQuotaUsage(db, row);
@@ -114,16 +119,20 @@ export async function createApiKey(
     hourlyTokenLimit: normalizedHourlyTokenLimit,
     hourlyResetMinute: normalizedHourlyResetMinute,
     createdAt: new Date().toISOString(),
+    access: { restricted: false, allow: [] },
   };
+  const cols = keyAccessToColumns(KEY_ACCESS_UNRESTRICTED);
   db.run(
     `INSERT INTO apiKeys(
       id, key, name, machineId, isActive, tokenLimit, usedTokens, allowedModels,
-      dailyTokenLimit, dailyResetTime, hourlyTokenLimit, hourlyResetMinute, createdAt
-    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      dailyTokenLimit, dailyResetTime, hourlyTokenLimit, hourlyResetMinute, createdAt,
+      accessRestricted, accessAllow
+    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.tokenLimit, 0,
       apiKey.allowedModels, apiKey.dailyTokenLimit, apiKey.dailyResetTime,
       apiKey.hourlyTokenLimit, apiKey.hourlyResetMinute, apiKey.createdAt,
+      cols.accessRestricted, cols.accessAllow,
     ]
   );
   return { ...apiKey, ...getApiKeyQuotaUsageWithAdapter(db, apiKey) };
@@ -152,10 +161,12 @@ export async function updateApiKey(id, data) {
       normalizedData.hourlyResetMinute = parseHourlyResetMinute(normalizedData.hourlyResetMinute);
     }
     const merged = { ...rowToKey(row), ...normalizedData };
+    const cols = keyAccessToColumns(merged.access);
     db.run(
       `UPDATE apiKeys SET
         key = ?, name = ?, machineId = ?, isActive = ?, tokenLimit = ?, usedTokens = ?, allowedModels = ?,
-        dailyTokenLimit = ?, dailyResetTime = ?, hourlyTokenLimit = ?, hourlyResetMinute = ?
+        dailyTokenLimit = ?, dailyResetTime = ?, hourlyTokenLimit = ?, hourlyResetMinute = ?,
+        accessRestricted = ?, accessAllow = ?
        WHERE id = ?`,
       [
         merged.key,
@@ -169,10 +180,12 @@ export async function updateApiKey(id, data) {
         merged.dailyResetTime,
         merged.hourlyTokenLimit,
         merged.hourlyResetMinute,
+        cols.accessRestricted,
+        cols.accessAllow,
         id,
       ]
     );
-    result = { ...merged, ...getApiKeyQuotaUsageWithAdapter(db, merged) };
+    result = withQuotaUsage(db, db.get(`SELECT * FROM apiKeys WHERE id = ?`, [id]));
   });
   return result;
 }
