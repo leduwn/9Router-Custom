@@ -974,8 +974,9 @@ Schema version:     4
 | Custom start | `04e2d8071c516b785ef1336dc0a9667c6b867b7c` |
 | Branch làm việc | `update/upstream-v0.5.111` |
 | Backup | `backup/goc-before-v0.5.111` |
+| Đích theo yêu cầu | Tạo `main` trên origin; hợp nhất lịch sử `master`. |
 
-Phạm vi upstream: 298 file, gồm provider web, định tuyến combo, audio và cập nhật database; cần bảo toàn branding, quota và Docker custom. 
+Phạm vi upstream: 298 file, gồm provider web, định tuyến combo, audio và cập nhật database; cần bảo toàn branding, quota và Docker custom.
 | Pha | Trạng thái | Kết quả |
 |---|---|---|
 | Database | ĐANG KIỂM THỬ | Nhận database upstream; kiểm tra migration/quota đang chạy. |
