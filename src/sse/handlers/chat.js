@@ -34,7 +34,7 @@ import { resolveSmartChoice } from "../services/systemoneRouter.js";
  * Supports: OpenAI, Claude, Gemini, OpenAI Responses API formats
  * Format detection and translation handled by translator
  */
-export async function handleChat(request, clientRawRequest = null) {
+export async function handleChat(request, clientRawRequest = null, wrapStream = null) {
   let body;
   try {
     body = await request.json();
@@ -106,6 +106,13 @@ export async function handleChat(request, clientRawRequest = null) {
   const bypassResponse = handleBypassRequest(body, modelStr, userAgent, !!settings.ccFilterNaming);
   if (bypassResponse) return bypassResponse.response || bypassResponse;
 
+  if (wrapStream && body.stream === true) {
+    return wrapStream((signal) => routeChat({ body, modelStr, contextMarker, clientRawRequest: { ...clientRawRequest, signal }, request, apiKey, keyAccess, settings, sessionId }), request.signal);
+  }
+  return routeChat({ body, modelStr, contextMarker, clientRawRequest, request, apiKey, keyAccess, settings, sessionId });
+}
+
+async function routeChat({ body, modelStr, contextMarker, clientRawRequest, request, apiKey, keyAccess, settings, sessionId }) {
   const requiredCapabilities = detectRequiredCapabilities(body);
 
   // Check if model is a combo (has multiple models with fallback)
@@ -193,6 +200,7 @@ export async function handleChat(request, clientRawRequest = null) {
  * Handle single model chat request
  */
 async function handleSingleModelChat(body, modelStr, clientRawRequest = null, request = null, apiKey = null, requestedModel = null) {
+  if (clientRawRequest?.signal?.aborted) return errorResponse(499, "Request aborted");
   const modelInfo = await getModelInfo(modelStr);
 
   // If provider is null, this might be a combo name - check and handle
@@ -360,6 +368,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     });
 
     if (result.success) return result.response;
+    if (clientRawRequest?.signal?.aborted) return errorResponse(499, "Request aborted");
 
     // Antigravity 409/429: refresh live quota to get exact resetAt before locking
     let quotaResetMs = null;

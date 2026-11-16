@@ -1,4 +1,5 @@
 import { handleChat } from "@/sse/handlers/chat.js";
+import { keepClaudeStreamAlive } from "@/sse/services/claudeStream.js";
 import { initTranslators } from "open-sse/translator/index.js";
 
 let initialized = false;
@@ -31,6 +32,6 @@ export async function OPTIONS() {
  */
 export async function POST(request) {
   await ensureInitialized();
-  return await handleChat(request);
+  return await handleChat(request, null, keepClaudeStreamAlive);
 }
 

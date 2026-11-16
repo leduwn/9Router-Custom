@@ -11,10 +11,10 @@ File này là nguồn theo dõi chính cho mọi lần đồng bộ 9Router gố
 | Trường | Giá trị |
 |---|---|
 | Phiên bản tài liệu | 2.0 |
-| Cập nhật gần nhất | 2026-10-16 |
+| Cập nhật gần nhất | 2026-11-16 |
 | Upstream base đã hoàn thành gần nhất | `v0.5.104` / `87a74e1b` |
 | Custom snapshot đã hoàn thành gần nhất | `origin/goc` / `04e2d807` |
-| Đợt update upstream đang hoạt động | `UPD-007` — ĐANG KIỂM THỬ |
+| Đợt update upstream đang hoạt động | `UPD-008` — ĐANG TRIỂN KHAI |
 | Nơi ghi tiến độ | Mục 16 — Nhật ký update |
 
 ### Quy tắc bắt buộc khi có bản gốc mới
@@ -962,6 +962,17 @@ Schema version:     4
 ## 16. Nhật ký update
 
 Đây là phần phải được cập nhật trong lúc làm việc, không chỉ sau khi code xong. Bản ghi mới nhất đặt trên cùng. Khi một đợt hoàn thành, giữ nguyên bản ghi đó và tạo bản ghi mới phía trên cho lần tiếp theo.
+
+### UPD-008 — Update lên upstream `v0.5.119`
+
+- Ngày bắt đầu: 2026-11-16. Trạng thái: ĐANG TRIỂN KHAI.
+- Upstream: `v0.5.111` / `3a978a63` → `v0.5.119` / `1855aa44` (source local).
+- Custom base: `main` / `e10c7600`. Nhánh làm việc: `update/upstream-v0.5.119`.
+- Database/backend/frontend: nhận thay đổi upstream; giữ quota, phân quyền và nhận diện Duwn. Xung đột duy nhất ở package: giữ mô tả Duwn và đồng nhất phiên bản với changelog/CLI `0.5.119`.
+- Claude Code: `POST /v1/messages` với `stream: true` có ping SSE sau 15 giây nếu chưa nhận byte upstream; giữ mã HTTP cho lỗi đến sớm, chuyển lỗi đến muộn sang sự kiện Claude. Hủy kết nối được chuyển tiếp đến upstream. Không giảm thinking budget hay đổi timeout provider.
+- Cloudflare: `9router.duwn.id.vn` qua Tunnel khỏe, cấu hình ingress tại VPS, gói Free. Không đổi DNS/Tunnel; sửa thời gian đến byte đầu tại origin. HTTP loopback nhận ping sau 15.065 giây; test giả lập 135 giây không có upstream headers.
+- Kiểm thử: 192/192 mục tiêu pass (12 suite, undici 7.30.2, ffmpeg tạm). Production build Windows còn chạy tại lúc chuẩn bị commit.
+- Triển khai: theo yêu cầu, đích GitHub là `main`, sau đó backup và kiểm tra tuần tự hai instance trên duwnpanel và một trên tungpanel.
 
 ### UPD-007 — Update lên upstream `v0.5.111`
 
