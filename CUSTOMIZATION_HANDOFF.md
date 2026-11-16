@@ -10,11 +10,11 @@ File này là nguồn theo dõi chính cho mọi lần đồng bộ 9Router gố
 
 | Trường | Giá trị |
 |---|---|
-| Phiên bản tài liệu | 2.0 |
+| Phiên bản tài liệu | 2.1 |
 | Cập nhật gần nhất | 2026-11-16 |
-| Upstream base đã hoàn thành gần nhất | `v0.5.104` / `87a74e1b` |
-| Custom snapshot đã hoàn thành gần nhất | `origin/goc` / `04e2d807` |
-| Đợt update upstream đang hoạt động | `UPD-008` — ĐANG TRIỂN KHAI |
+| Upstream base đã hoàn thành gần nhất | `v0.5.119` / `1855aa44` |
+| Custom snapshot đã hoàn thành gần nhất | `origin/main` / `67e477ad` (mã đã triển khai) |
+| Đợt update upstream đang hoạt động | Không có — `UPD-008` đã hoàn thành |
 | Nơi ghi tiến độ | Mục 16 — Nhật ký update |
 
 ### Quy tắc bắt buộc khi có bản gốc mới
@@ -40,7 +40,7 @@ Ngoại lệ: BỊ CHẶN hoặc HỦY
 ## 1. Nguồn chuẩn của tài liệu
 
 - Repository GitHub: `https://github.com/leduwn/9Router-Custom`
-- Nhánh được dùng làm nguồn sự thật: `goc`
+- Nhánh được dùng làm nguồn sự thật cho lần triển khai gần nhất: `main` (`goc` là mốc custom lịch sử).
 - Snapshot đã xác minh trực tiếp từ GitHub gần nhất ngày 2026-09-07: `f88330f843e4469093247a91a332a949287192ed`
 - Điểm bắt đầu của bản custom: tag upstream `v0.5.45`, commit `6fcd2733`
 - Upstream base hiện tại sau UPD-004: tag `v0.5.69`, commit `eb712ca8`.
@@ -931,14 +931,15 @@ Không phải mọi kết quả chứa `9router` đều cần đổi. Các tên 
 ## 14. Trạng thái Git và phạm vi bàn giao
 
 - Năm commit ở Mục 3 là các mốc custom ban đầu; các merge upstream và bản vá tiếp theo được ghi đầy đủ tại Mục 16.
-- Snapshot nguồn sự thật hiện tại là `origin/goc` / `013dfd62`; working tree sạch tại thời điểm xác minh.
+- Mã triển khai được xác minh tại `origin/main` / `67e477ad`; `origin/goc` / `013dfd62` là mốc lịch sử của UPD-004.
 - Tài liệu không kết luận các thay đổi local ngoài lịch sử đã ghi là do custom Duwn.
 - Không có API key, mật khẩu, token truy cập hoặc secret nào được ghi vào tài liệu.
 
 ## 15. Mốc tham chiếu nhanh
 
 ```text
-Base upstream/tag:  39e36d3d  v0.5.86
+Base upstream/tag:  1855aa44  v0.5.119
+Remote main (deploy): origin/main @ 67e477ad
 Branding/Docker:    caf4b9b8
 Token Limit:        b11d67ac
 Allowed Models:     370112b5
@@ -956,23 +957,30 @@ Brand:              Duwn
 Primary color:      #2188FF
 Docker image local: 9router-custom:local
 Published image:    ghcr.io/leduwn/9router-custom
-Schema version:     4
+Schema version:     5
 ```
 
 ## 16. Nhật ký update
 
 Đây là phần phải được cập nhật trong lúc làm việc, không chỉ sau khi code xong. Bản ghi mới nhất đặt trên cùng. Khi một đợt hoàn thành, giữ nguyên bản ghi đó và tạo bản ghi mới phía trên cho lần tiếp theo.
 
+### UPD-009 — Chờ bản upstream kế tiếp
+
+- Base upstream: `v0.5.119` / `1855aa44`. Base custom đã triển khai: `origin/main` / `67e477ad`.
+
 ### UPD-008 — Update lên upstream `v0.5.119`
 
-- Ngày bắt đầu: 2026-11-16. Trạng thái: ĐANG TRIỂN KHAI.
+- Ngày bắt đầu và hoàn thành: 2026-11-16. Trạng thái: HOÀN THÀNH.
 - Upstream: `v0.5.111` / `3a978a63` → `v0.5.119` / `1855aa44` (source local).
 - Custom base: `main` / `e10c7600`. Nhánh làm việc: `update/upstream-v0.5.119`.
 - Database/backend/frontend: nhận thay đổi upstream; giữ quota, phân quyền và nhận diện Duwn. Xung đột duy nhất ở package: giữ mô tả Duwn và đồng nhất phiên bản với changelog/CLI `0.5.119`.
 - Claude Code: `POST /v1/messages` với `stream: true` có ping SSE sau 15 giây nếu chưa nhận byte upstream; giữ mã HTTP cho lỗi đến sớm, chuyển lỗi đến muộn sang sự kiện Claude. Hủy kết nối được chuyển tiếp đến upstream. Không giảm thinking budget hay đổi timeout provider.
 - Cloudflare: `9router.duwn.id.vn` qua Tunnel khỏe, cấu hình ingress tại VPS, gói Free. Không đổi DNS/Tunnel; sửa thời gian đến byte đầu tại origin. HTTP loopback nhận ping sau 15.065 giây; test giả lập 135 giây không có upstream headers.
-- Kiểm thử: 192/192 mục tiêu pass (12 suite, undici 7.30.2, ffmpeg tạm). Production build Windows còn chạy tại lúc chuẩn bị commit.
-- Triển khai: theo yêu cầu, đích GitHub là `main`, sau đó backup và kiểm tra tuần tự hai instance trên duwnpanel và một trên tungpanel.
+- Kiểm thử: 192/192 mục tiêu pass (12 suite, undici 7.30.2, ffmpeg tạm). Docker production build trên cả hai VPS đạt 152/152 trang; dừng lượt Windows riêng sau khi Linux đạt.
+- Smoke test trên cả hai VPS: container cách ly với DB/API key giả nhận ping trên `POST /v1/messages` tại 15.025 giây, rồi nhận đủ output và `message_stop` từ provider mô phỏng chậm. Chưa đo với model thật qua Cloudflare.
+- Kết quả chạy: `9router.duwn.id.vn` và `anton9router.duwn.id.vn` trả health OK và version 0.5.119 qua Cloudflare; request Claude thiếu key trả 401. `tungpanel:20127` trả health OK và version 0.5.119 tại origin.
+- Backup: cả ba instance có bản sao SQLite online và archive dữ liệu, đã qua integrity check và checksum; image cũ được gắn tag rollback. Sau cập nhật, mount dữ liệu và số lượng key/provider đều khớp trước khi thay image.
+- Đã triển khai image từ commit `67e477ad`. Build dùng source `main` trong thư mục staging của từng VPS, giữ nguyên các file Compose và checkout cũ; lần sau lấy source từ `main` trước khi build để tránh dùng nhầm phiên bản cũ.
 
 ### UPD-007 — Update lên upstream `v0.5.111`
 
