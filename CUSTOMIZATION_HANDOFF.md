@@ -11,7 +11,7 @@ File này là nguồn theo dõi chính cho mọi lần đồng bộ 9Router gố
 | Trường | Giá trị |
 |---|---|
 | Phiên bản tài liệu | 2.1 |
-| Cập nhật gần nhất | 2026-11-16 |
+| Cập nhật gần nhất | 2026-11-18 |
 | Upstream base đã hoàn thành gần nhất | `v0.5.119` / `1855aa44` |
 | Custom snapshot đã hoàn thành gần nhất | `origin/main` / `67e477ad` (mã đã triển khai) |
 | Đợt update upstream đang hoạt động | Không có — `UPD-008` đã hoàn thành |
@@ -963,6 +963,14 @@ Schema version:     5
 ## 16. Nhật ký update
 
 Đây là phần phải được cập nhật trong lúc làm việc, không chỉ sau khi code xong. Bản ghi mới nhất đặt trên cùng. Khi một đợt hoàn thành, giữ nguyên bản ghi đó và tạo bản ghi mới phía trên cho lần tiếp theo.
+
+### GOOGLE-403 — Antigravity và Gemini API (2026-11-18)
+
+- Google trả `403` từ endpoint Antigravity nội bộ dù refresh OAuth thành công. Không có nội dung lỗi đủ để xác định lý do từ chối của từng tài khoản. Google [không hỗ trợ](https://antigravity.google/docs/faq) dùng đăng nhập Antigravity cá nhân với coding agent bên thứ ba; không thay ID OAuth, header nhận diện hay host để né kiểm tra.
+- 9Router giữ `403 permission_denied` cả khi model còn cooldown và khi gọi qua combo; không refresh hoặc thử tài khoản Antigravity khác trong cùng request sau `403`. Combo vẫn có thể thử provider dự phòng đã cấu hình. Lỗi quota thật `429` giữ cơ chế hiện tại.
+- Provider Gemini dùng [Gemini API key](https://ai.google.dev/gemini-api/docs/api-key) qua `x-goog-api-key` cho xác minh, test kết nối và danh sách model; probe không gọi inference. Phân biệt lỗi key, hạn chế IP/dịch vụ, hết quota và lỗi upstream; không trả chi tiết nhạy cảm từ Google.
+- Chuyển sang luồng chính thức: vào **Providers → Gemini**, nhập key AI Studio/Google Cloud, chạy **Test** và lấy model theo danh sách Google cấp cho project. Nếu key có quyền phù hợp, có thể đặt `gemini/gemini-3.8-flash` cho combo `bot` sau khi đồng ý chi phí. Vertex AI là lựa chọn khi dùng project và IAM của Google Cloud. Không dùng lại Antigravity OAuth token cho các phương án này.
+- Xác minh mã: 219/219 kiểm thử mục tiêu đạt; chưa đổi provider key, combo hoặc chính sách Google Cloud trên VPS.
 
 ### UPD-009 — Chờ bản upstream kế tiếp
 

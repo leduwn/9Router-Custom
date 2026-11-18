@@ -147,6 +147,18 @@ export class AntigravityExecutor extends BaseExecutor {
         }
       } catch { /* fall through to default */ }
     }
+    if (response.status === HTTP_STATUS.FORBIDDEN) {
+      let reason;
+      try {
+        const details = JSON.parse(bodyText)?.error?.details;
+        if (Array.isArray(details)) reason = details.find(d => d?.["@type"] === "type.googleapis.com/google.rpc.ErrorInfo")?.reason;
+      } catch { /* 403 can arrive with an empty body */ }
+      return {
+        status: response.status,
+        message: typeof reason === "string" && /^[A-Z][A-Z0-9_]{0,63}$/.test(reason)
+          ? `Permission denied (${reason})` : "Permission denied by Google",
+      };
+    }
     return super.parseError(response, bodyText);
   }
 

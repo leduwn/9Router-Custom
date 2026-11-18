@@ -99,3 +99,15 @@ describe("antigravity computeRetryDelay hook (D3)", () => {
     expect(out.request.generationConfig.maxOutputTokens).toBe(64000);
   });
 });
+
+it("extracts a safe Google ErrorInfo reason on a 403 without exposing the raw response", () => {
+  const ag = new AntigravityExecutor();
+  const body = JSON.stringify({ error: {
+    message: "private details",
+    details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "ACCESS_TOKEN_SCOPE_INSUFFICIENT" }],
+  } });
+  expect(ag.parseError({ status: 403 }, body)).toEqual({
+    status: 403, message: "Permission denied (ACCESS_TOKEN_SCOPE_INSUFFICIENT)",
+  });
+  expect(ag.parseError({ status: 403 }, "").message).toBe("Permission denied by Google");
+});

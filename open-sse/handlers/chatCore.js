@@ -444,8 +444,9 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg);
   }
 
-  // Handle 401/403 - try token refresh (skip for noAuth providers)
-  if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED || providerResponse.status === HTTP_STATUS.FORBIDDEN)) {
+  // Antigravity's 403 is a permission denial; refreshing does not grant access.
+  if (!executor.noAuth && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
+    (providerResponse.status === HTTP_STATUS.FORBIDDEN && provider !== "antigravity"))) {
     try {
       // Mutate credentials after each successful refresh: rotating refresh_token
       // providers (xAI/grok-cli) issue a new RT on every refresh; without this,

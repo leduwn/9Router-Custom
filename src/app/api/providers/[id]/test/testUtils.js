@@ -1,4 +1,5 @@
 import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
+import { probeGeminiApiKey } from "open-sse/services/geminiApi.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { testProxyUrl } from "@/lib/network/proxyTest";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
@@ -657,10 +658,8 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         const valid = res.status !== 401;
         return { valid, error: valid ? null : "Invalid API key" };
       }
-      case "gemini": {
-        const res = await fetchWithConnectionProxy(`https://generativelanguage.googleapis.com/v1/models?key=${connection.apiKey}`, {}, effectiveProxy);
-        return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
-      }
+      case "gemini":
+        return await probeGeminiApiKey(connection.apiKey, (url, options) => fetchWithConnectionProxy(url, options, effectiveProxy));
       case "openrouter": {
         const res = await fetchWithConnectionProxy("https://openrouter.ai/api/v1/auth/key", { headers: { Authorization: `Bearer ${connection.apiKey}` } }, effectiveProxy);
         return { valid: res.ok, error: res.ok ? null : "Invalid API key" };

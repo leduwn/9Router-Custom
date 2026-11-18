@@ -232,3 +232,24 @@ describe("/v1/models routes filter by key", () => {
     expect((await kind("sk-empty", one.split("/"))).status).toBe(404);
   });
 });
+
+describe("Google permission failures", () => {
+  it("keeps an Antigravity 403 visible across repeated calls to a single-model combo", async () => {
+    fx.combos.push({ id: "google-test", name: "GoogleTest", models: ["ag/gemini-3.8-flash"] });
+    try {
+      mocks.getProviderCredentials.mockResolvedValue({
+        allRateLimited: true, lastError: "[403]: HTTP 403", lastErrorCode: 403,
+        retryAfter: new Date(Date.now() + 120_000).toISOString(), retryAfterHuman: "reset after 2m",
+      });
+      for (let i = 0; i < 2; i++) {
+        const res = await chat("GoogleTest", "sk-open");
+        expect(res.status).toBe(403);
+        expect(res.headers.has("retry-after")).toBe(false);
+        expect((await res.json()).error.message).toMatch(/Gemini API/);
+      }
+      expect(mocks.handleChatCore).not.toHaveBeenCalled();
+    } finally {
+      fx.combos.pop();
+    }
+  });
+});

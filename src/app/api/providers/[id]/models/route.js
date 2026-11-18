@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GEMINI_MODELS_URL } from "open-sse/services/geminiApi.js";
 import { getProviderConnectionById } from "@/models";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 import { GEMINI_CONFIG, ZED_HOSTED_CONFIG } from "@/lib/oauth/constants/oauth";
@@ -203,10 +204,9 @@ const PROVIDER_MODELS_CONFIG = {
     parseResponse: (data) => (data.data || []).map((m) => ({ id: m.id, name: m.display_name || m.id }))
   },
   gemini: {
-    url: "https://generativelanguage.googleapis.com/v1beta/models",
+    url: GEMINI_MODELS_URL,
     method: "GET",
-    headers: { "Content-Type": "application/json" },
-    authQuery: "key", // Use query param for API key
+    authHeader: "x-goog-api-key",
     parseResponse: (data) => data.models || []
   },
   codex: {

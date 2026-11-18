@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { probeGeminiApiKey } from "open-sse/services/geminiApi.js";
 import { ACCEPT_ENCODING } from "open-sse/utils/zstdCompat.js";
 import { getProviderNodeById } from "@/models";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider, AI_PROVIDERS } from "@/shared/constants/providers";
@@ -318,9 +319,7 @@ export async function POST(request) {
           break;
 
         case "gemini":
-          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
-          isValid = geminiRes.ok;
-          break;
+          return NextResponse.json(await probeGeminiApiKey(apiKey));
 
         case "openrouter":
           const openrouterRes = await fetch("https://openrouter.ai/api/v1/models", {

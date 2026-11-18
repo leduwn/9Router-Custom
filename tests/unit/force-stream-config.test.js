@@ -76,7 +76,8 @@ vi.mock("../../open-sse/rtk/headroom.js", () => ({
   isHeadroomPhantomSavings: vi.fn(() => false),
 }));
 
-vi.mock("../../open-sse/providers/capabilities.js", () => ({
+vi.mock("../../open-sse/providers/capabilities.js", async (importOriginal) => ({
+  ...await importOriginal(),
   getCapabilitiesForModel: vi.fn(() => ({})),
 }));
 
@@ -157,3 +158,18 @@ describe("forceStream provider config", { timeout: 20_000 }, () => {
     expect(executeMock.mock.calls[0][0].stream).toBe(true);
   });
 });
+
+it("does not refresh an Antigravity permission denial as if the OAuth token expired", async () => {
+  const { handleChatCore } = await import("../../open-sse/handlers/chatCore.js");
+  const { refreshWithRetry } = await import("../../open-sse/services/tokenRefresh.js");
+  const { parseUpstreamError } = await import("../../open-sse/utils/error.js");
+  refreshWithRetry.mockClear();
+  executeMock.mockReset().mockResolvedValue({ response: new Response("Permission denied", { status: 403 }) });
+  parseUpstreamError.mockResolvedValueOnce({ statusCode: 403, message: "Permission denied" });
+  const opts = makeOptions(true);
+  opts.modelInfo = { provider: "antigravity", model: "gemini-3.8-flash" };
+  opts.credentials = { accessToken: "offline", refreshToken: "offline" };
+  expect((await handleChatCore(opts)).status).toBe(403);
+  expect(executeMock).toHaveBeenCalledTimes(1);
+  expect(refreshWithRetry).not.toHaveBeenCalled();
+}, 20_000);
